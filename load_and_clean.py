@@ -3,12 +3,16 @@ import pandas as pd
 
 # load and clean NYTimes data
 def _NYTimes_US():
-    # TODO unimplemented
-    pass
+    country = pd.read_csv("../data/covid/NYTimes/us.csv")
+    return country
+
 def _NYTimes_states():
     states = pd.read_csv("../data/covid/NYTimes/us-states.csv")
     cases = states.pivot(index='date', columns='state', values='cases')
     deaths = states.pivot(index='date', columns='state', values='deaths')
+    cases = cases.fillna(0)
+    deaths = deaths.fillna(0)
+
 
     return cases, deaths, states
 def _NYTimes_counties():
@@ -16,6 +20,8 @@ def _NYTimes_counties():
     counties['county_state'] = counties['county']+'-'+counties['state']
     cases = counties.pivot_table(index='date', columns='county_state', values='cases')
     deaths = counties.pivot_table(index='date', columns='county_state', values='deaths')
+    cases = cases.fillna(0)
+    deaths = deaths.fillna(0)
 
     return cases, deaths, counties
 
@@ -43,8 +49,19 @@ def _JHU_global():
     return cases_after_Jan22, deaths_after_Jan22
 
 def _JHU_US():
-    # TODO unimplemented
-    pass
+    deaths = pd.read_csv("../data/covid/JHU/time_series_covid19_deaths_us.csv")
+    cases = pd.read_csv("../data/covid/JHU/time_series_covid19_confirmed_us.csv")
+
+    deaths = deaths.set_index('Combined_Key')
+    deaths_after_Jan22 = deaths.loc[:, '1/22/20':].T
+
+    cases = cases.set_index('Combined_Key')
+    cases_after_Jan22 = cases.loc[:, '1/22/20':].T
+
+    cases_after_Jan22.index = pd.to_datetime(cases_after_Jan22.index, format='%m/%d/%y').strftime('%Y-%m-%d')
+    deaths_after_Jan22.index = pd.to_datetime(deaths_after_Jan22.index, format='%m/%d/%y').strftime('%Y-%m-%d')
+
+    return cases_after_Jan22, deaths_after_Jan22
 
 
 # load and clean mobility data
