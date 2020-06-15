@@ -19,26 +19,59 @@ def create_filtered_data(df, threshold):
             newdf = pd.concat([newdf, pd.DataFrame(columns=[location], data=df.loc[highnumber.index[0]:,location].values)], axis=1)
     return newdf
 
-# function to create filtered dataframe based on intervention dates and align timeseries
+def create_rolling_data(df, rolling_average_duration):
+    return df.diff().iloc[1:,:].rolling(rolling_average_duration).\
+                                mean().iloc[rolling_average_duration-1:,:]
 
-def filter_data_by_intervention(df, intervention, lag=0):
+#functions to summarized the intervention table based on the given intervention, the output will be used in filter_data_by_intervention
+def create_intervention_data(sd_data, intervention):
+    intervention_table = sd_data[['country','name',intervention]]
+    intervention_table[intervention] = intervention_table[intervention].str.replace(".","-")
+
+    for place in intervention_table.name:
+#or place in ['Belgium', 'Finland']:
+        split_values = intervention_table[intervention_table.name == place][intervention].str.split("-").values
+        #print(split_values)
+        #print(place, split_values, split_values.shape)
+        if(split_values): #check null
+            if(len(split_values[0])>1):#check not implemented
+            #print(split_values[0])
+            #print(place)
+                intervention_table.loc[intervention_table.name == place, "date"] = split_values[0][2]+"-"+split_values[0][1]+"-"+split_values[0][0]
+            else:
+                print(place)
+                print(intervention_table[intervention_table.name == place])
+    return intervention_table
+
+# function to create filtered dataframe based on intervention dates and align timeseries
+def filter_data_by_intervention(df, intervention_table, lag=0):
     newdf = pd.DataFrame()
-    if (lag > 0):
-        subscript=" -"+str(lag)
-    elif (lag < 0):
-        subscript=" +"+str(np.abs(lag))
-    else:
-        subscript=""
+
+    # if (lag > 0):
+    #     subscript=" -"+str(lag)
+    # elif (lag < 0):
+    #     subscript=" +"+str(np.abs(lag))
+    # else:
+    #     subscript=""
+    subscript = str(lag)
     for state in df.columns:
-        intervention_date = intervention[intervention.name == state].date.values
+        intervention_date = intervention_table[intervention_table.name == state].date.values
         if(intervention_date.size>0):
             newdata = df.loc[pd.to_datetime(df.index)>=pd.to_datetime(intervention_date[0])][state].values
             if(np.isnan(newdata[:5]).any()):
                 print(state)
                 continue
-            newdf = pd.concat([newdf, pd.DataFrame(columns=[state+subscript],
+            newdf = pd.concat([newdf, pd.DataFrame(columns=[state],
                                                        data=df.loc[pd.to_datetime(df.index) >= pd.to_datetime(intervention_date[0]) - 
-                                                                         datetime.timedelta(days=lag)][state].values)], axis=1)
+                                                                         datetime.timedelta(days=0)][state].values)], axis=1)
+
+            if (lag != 0):
+                newdf = pd.concat([newdf, pd.DataFrame(columns=[state+" plus " + subscript], 
+                                                   data=df.loc[pd.to_datetime(df.index) >= pd.to_datetime(intervention_date[0]) + 
+                                                                     datetime.timedelta(days=lag)][state].values)], axis=1)
+                newdf = pd.concat([newdf, pd.DataFrame(columns=[state+" minus " + subscript], 
+                                                   data=df.loc[pd.to_datetime(df.index) >= pd.to_datetime(intervention_date[0]) - 
+                                                                     datetime.timedelta(days=lag)][state].values)], axis=1)
     return newdf
 
 def get_social_distancing(df, intervention_tried):
