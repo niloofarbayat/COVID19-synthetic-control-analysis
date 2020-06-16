@@ -2,12 +2,23 @@ import numpy as np
 import pandas as pd
 
 # load and clean NYTimes data
-def _NYTimes_US():
-    country = pd.read_csv("../data/covid/NYTimes/us.csv")
+def _NYTimes_US(online = True):
+
+    if online:
+        country = pd.read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us.csv")
+
+    else:
+        country = pd.read_csv("../data/covid/NYTimes/us.csv")
     return country
 
-def _NYTimes_states():
-    states = pd.read_csv("../data/covid/NYTimes/us-states.csv")
+def _NYTimes_states(online = True):
+    if online:
+        states = pd.read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv")
+
+    else:
+        states = pd.read_csv("../data/covid/NYTimes/us-states.csv")
+
+    
     cases = states.pivot(index='date', columns='state', values='cases')
     deaths = states.pivot(index='date', columns='state', values='deaths')
     cases = cases.fillna(0)
@@ -15,8 +26,13 @@ def _NYTimes_states():
 
 
     return cases, deaths, states
-def _NYTimes_counties():
-    counties = pd.read_csv("../data/covid/NYTimes/us-counties.csv")
+def _NYTimes_counties(online = True):
+    if online:
+        counties = pd.read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
+    else:
+        counties = pd.read_csv("../data/covid/NYTimes/us-counties.csv")
+
     counties['county_state'] = counties['county']+'-'+counties['state']
     cases = counties.pivot_table(index='date', columns='county_state', values='cases')
     deaths = counties.pivot_table(index='date', columns='county_state', values='deaths')
@@ -27,9 +43,13 @@ def _NYTimes_counties():
 
 
 # load and clean JHU data
-def _JHU_global():
-    deaths = pd.read_csv("../data/covid/JHU/time_series_covid19_deaths_global.csv")
-    cases = pd.read_csv("../data/covid/JHU/time_series_covid19_confirmed_global.csv")
+def _JHU_global(online = True):
+    if online:
+        deaths = pd.read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
+        cases = pd.read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+    else:
+        deaths = pd.read_csv("../data/covid/JHU/time_series_covid19_deaths_global.csv")
+        cases = pd.read_csv("../data/covid/JHU/time_series_covid19_confirmed_global.csv")
 
     deaths['Province-Country'] = deaths['Country/Region']+'-'+deaths['Province/State'].fillna("None")
     deaths['Province-Country'] = deaths['Province-Country'].str.replace("-None", "")
@@ -48,9 +68,15 @@ def _JHU_global():
 
     return cases_after_Jan22, deaths_after_Jan22
 
-def _JHU_US():
-    deaths = pd.read_csv("../data/covid/JHU/time_series_covid19_deaths_us.csv")
-    cases = pd.read_csv("../data/covid/JHU/time_series_covid19_confirmed_us.csv")
+def _JHU_US(online = True):
+    if online:
+        deaths = pd.read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_US.csv")
+        cases = pd.read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv")
+
+    else:
+
+        deaths = pd.read_csv("../data/covid/JHU/time_series_covid19_deaths_us.csv")
+        cases = pd.read_csv("../data/covid/JHU/time_series_covid19_confirmed_us.csv")
 
     deaths = deaths.set_index('Combined_Key')
     deaths_after_Jan22 = deaths.loc[:, '1/22/20':].T
@@ -65,7 +91,7 @@ def _JHU_US():
 
 
 # load and clean mobility data
-def _mobility():
+def _mobility(online = True):
     apple = pd.read_csv("../data/mobility/applemobilitytrends-2020-05-30.csv")
     google = pd.read_csv("../data/mobility/Global_Mobility_Report.csv", low_memory=False)
 
@@ -74,7 +100,7 @@ def _mobility():
 
 
 # load and clean IHME intervention data
-def _IHME_intervention():
+def _IHME_intervention(online = True):
     sd_data = pd.read_csv("../data/intervention/sdc_sources.csv")
     sd_data['last date'] = 'none'
     for _, row in sd_data.iterrows():
@@ -102,7 +128,7 @@ def _IHME_intervention():
 # returns the imported & cleaned dataset.
 # if called with a covid dataset, returns both the cases and deaths datasets.
 # if called on any NYTimes dataset, additionally returns the raw dataset.
-def load_clean(dataset):
+def load_clean(dataset, online = True):
     _function_dictionary = {'NYTimes US' : _NYTimes_US,
                         'NYTimes states' : _NYTimes_states,
                         'NYTimes counties' : _NYTimes_counties,
@@ -112,4 +138,4 @@ def load_clean(dataset):
                         'IHME intervention' : _IHME_intervention    
     }
 
-    return _function_dictionary[dataset]()
+    return _function_dictionary[dataset](online)
