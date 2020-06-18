@@ -101,7 +101,7 @@ def _import_mobility():
 
     google_work_country = mobility_data_google.pivot_table(index='date', columns='country_region', values='workplaces_percent_change_from_baseline')
     global_google = google_work_country[google_work_country.lt(-30)].apply(pd.Series.first_valid_index)
-    google_work_us = mobility_data_google[mobility_data_google.country_region ==  "United States"].pivot_table(index='date', values=mobility_data_google.columns[9], columns='sub_region_1')
+    google_work_us = mobility_data_google[mobility_data_google.country_region ==  "United States"].pivot_table(index='date', values=mobility_data_google.columns[8], columns='sub_region_1')
     us_google = google_work_us[google_work_us.lt(-30)].apply(pd.Series.first_valid_index)
     google_social = pd.DataFrame(data=pd.concat([global_google, us_google]), columns=['date'])
     google_social['date'] = pd.to_datetime(google_social['date'])
