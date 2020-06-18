@@ -19,7 +19,7 @@ def create_filtered_data(df, threshold):
             newdf = pd.concat([newdf, pd.DataFrame(columns=[location], data=df.loc[highnumber.index[0]:,location].values)], axis=1)
     return newdf
 
-def create_rolling_data(df, rolling_average_duration):
+def create_rolling_data(df, rolling_average_duration = 7):
     return df.diff().iloc[1:,:].rolling(rolling_average_duration).\
                                 mean().iloc[rolling_average_duration-1:,:]
 
@@ -44,6 +44,7 @@ def create_intervention_data(sd_data, intervention):
     return intervention_table
 
 # function to create filtered dataframe based on intervention dates and align timeseries
+
 def filter_data_by_intervention(df, intervention, lag=0):
     newdf = pd.DataFrame()
     if (lag > 0):
@@ -52,6 +53,7 @@ def filter_data_by_intervention(df, intervention, lag=0):
         subscript=" +"+str(np.abs(lag))
     else:
         subscript=""
+    intervention_dates = {}
     for state in df.columns:
         intervention_date = intervention[intervention.name == state].date.values
         if(intervention_date.size>0):
@@ -62,7 +64,9 @@ def filter_data_by_intervention(df, intervention, lag=0):
             newdf = pd.concat([newdf, pd.DataFrame(columns=[state+subscript],
                                                        data=df.loc[pd.to_datetime(df.index) >= pd.to_datetime(intervention_date[0]) - 
                                                                          datetime.timedelta(days=lag)][state].values)], axis=1)
-    return newdf
+            intervention_dates[state] = intervention_date[0]
+    return newdf, intervention_dates
+
 
 def get_social_distancing(df, intervention_tried):
     social_distancing = df[['country','name',intervention_tried]].copy(deep=True)
@@ -93,7 +97,7 @@ def mse(y1, y2):
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], 
-                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1):
+                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20):
     #print('yo', list_of_dfs,'bo')
     #print(len(list_of_dfs))
     df = list_of_dfs[0]
@@ -191,11 +195,18 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             plt.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
             plt.plot(range(len(model_fit)), model_fit, label = 'Fitted model', color='g', linestyle=':')
             plt.axvline(x=low_thresh-1, color='k', linestyle='--', linewidth=4)
-            plt.title(title_text+" for "+str(state).replace("-None",""))
-            plt.xlabel("Days since Intervention")
-            plt.ylabel("Deaths")
-            plt.legend(['Actuals', 'Predictions', 'Fitted Model'])
             plt.grid()
+            if showDonors:
+                plt.title(title_text+" for "+str(state).replace("-None",""))
+                plt.xlabel("Days since Intervention")
+                plt.ylabel(yaxis)
+                plt.legend(['Actuals', 'Predictions', 'Fitted Model'])
+            else:
+                plt.tick_params(axis='both', which='major', labelsize=FONTSIZE)
+                plt.title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+                plt.xlabel("Days since Intervention", fontsize=FONTSIZE)
+                plt.ylabel(yaxis, fontsize=FONTSIZE)
+                plt.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
                 plt.savefig("../Figures/COVID/"+state+".png")        
             if(animation):
@@ -220,7 +231,7 @@ def create_peak_clusters(df, threshold=5):
     return global_peak_size
 
 
-def find_lockdown_date(df, state_list, mobility_us, max_days = 1, min_mobility = -10):
+def find_lockdown_date(state_list,df, mobility_us, max_days = 1, min_mobility = -10):
     pattern = re.compile('(Unknown|Unassigned)')
     newdf = pd.DataFrame()
     lockdown_dates = {}
