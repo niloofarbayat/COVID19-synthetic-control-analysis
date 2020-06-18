@@ -23,8 +23,8 @@ _apple_local_path = "../data/mobility/applemobilitytrends-2020-05-30.csv"
 _IHME_web_path = None #TODO unimplemented, line 177
 _IHME_local_path = "../data/intervention/sdc_sources.csv"
 
-
-
+_country_pop_local_path = "../data/population/country_pop_WDI.xlsx"
+_county_pop_local_path = "../data/population/co-est2019-annres.xlsx"
 
 # load and clean NYTimes data
 def _import_NYTimes_US():
@@ -94,10 +94,20 @@ def _import_JHU_US():
 
 # load and clean mobility data
 def _import_mobility():
-    apple = pd.read_csv(_apple_local_path)
-    google = pd.read_csv(_google_local_path, low_memory=False)
+    mobility_data_apple = pd.read_csv(_apple_local_path)
+    mobility_data_google = pd.read_csv(_google_local_path, low_memory=False)
 
-    return apple, google
+    #mobility_global = mobility_data_google.pivot_table(index='date', values='retail_and_recreation_percent_change_from_baseline', columns='country_region')
+
+    google_work_country = mobility_data_google.pivot_table(index='date', columns='country_region', values='workplaces_percent_change_from_baseline')
+    global_google = google_work_country[google_work_country.lt(-30)].apply(pd.Series.first_valid_index)
+    google_work_us = mobility_data_google[mobility_data_google.country_region ==  "United States"].pivot_table(index='date', values=mobility_data_google.columns[9], columns='sub_region_1')
+    us_google = google_work_us[google_work_us.lt(-30)].apply(pd.Series.first_valid_index)
+    google_social = pd.DataFrame(data=pd.concat([global_google, us_google]), columns=['date'])
+    google_social['date'] = pd.to_datetime(google_social['date'])
+    google_social['name'] = google_social.index
+
+    return mobility_data_apple, google_social
 
 
 
@@ -123,6 +133,20 @@ def _import_IHME_intervention():
         row['last date'] = np.max(dates_of_intervention)
 
     return sd_data
+
+#Load and clean the population data
+def _import_population_data():
+    country_population = pd.read_excel(_country_pop_local_path)
+    county_population = pd.read_excel(_county_pop_local_path, header=[3])
+    new = county_population['Unnamed: 0'].str.replace(".","").str.replace(" County","").str.split(pat=",", expand=True)
+    county_population['state']=new[1].str.strip()
+    state_population = county_population.groupby('state').sum()
+    us_state_population = pd.DataFrame()
+    us_state_population['Country'] = state_population.index
+    us_state_population['Value'] = state_population[[2019]].values
+    all_population = pd.concat([country_population, us_state_population], axis=0, ignore_index=True)
+    return all_population
+
 
 
 
@@ -181,7 +205,8 @@ def load_clean(dataset):
                         'JHU global' : _import_JHU_global,
                         'JHU US' : _import_JHU_US,
                         'mobility' : _import_mobility,
-                        'IHME intervention' : _import_IHME_intervention    
+                        'IHME intervention' : _import_IHME_intervention,  
+                        'population': _import_population_data  
     }
 
     return _import_function_dictionary[dataset]()
