@@ -107,7 +107,7 @@ def _import_mobility():
     google_social['date'] = pd.to_datetime(google_social['date'])
     google_social['name'] = google_social.index
 
-    return mobility_data_apple, google_social
+    return mobility_data_apple, mobility_data_google, google_social
 
 
 
