@@ -44,34 +44,24 @@ def create_intervention_data(sd_data, intervention):
     return intervention_table
 
 # function to create filtered dataframe based on intervention dates and align timeseries
-def filter_data_by_intervention(df, intervention_table, lag=0):
+def filter_data_by_intervention(df, intervention, lag=0):
     newdf = pd.DataFrame()
-
-    # if (lag > 0):
-    #     subscript=" -"+str(lag)
-    # elif (lag < 0):
-    #     subscript=" +"+str(np.abs(lag))
-    # else:
-    #     subscript=""
-    subscript = str(lag)
+    if (lag > 0):
+        subscript=" -"+str(lag)
+    elif (lag < 0):
+        subscript=" +"+str(np.abs(lag))
+    else:
+        subscript=""
     for state in df.columns:
-        intervention_date = intervention_table[intervention_table.name == state].date.values
+        intervention_date = intervention[intervention.name == state].date.values
         if(intervention_date.size>0):
             newdata = df.loc[pd.to_datetime(df.index)>=pd.to_datetime(intervention_date[0])][state].values
             if(np.isnan(newdata[:5]).any()):
                 print(state)
                 continue
-            newdf = pd.concat([newdf, pd.DataFrame(columns=[state],
+            newdf = pd.concat([newdf, pd.DataFrame(columns=[state+subscript],
                                                        data=df.loc[pd.to_datetime(df.index) >= pd.to_datetime(intervention_date[0]) - 
-                                                                         datetime.timedelta(days=0)][state].values)], axis=1)
-
-            if (lag != 0):
-                newdf = pd.concat([newdf, pd.DataFrame(columns=[state+" plus " + subscript], 
-                                                   data=df.loc[pd.to_datetime(df.index) >= pd.to_datetime(intervention_date[0]) + 
-                                                                     datetime.timedelta(days=lag)][state].values)], axis=1)
-                newdf = pd.concat([newdf, pd.DataFrame(columns=[state+" minus " + subscript], 
-                                                   data=df.loc[pd.to_datetime(df.index) >= pd.to_datetime(intervention_date[0]) - 
-                                                                     datetime.timedelta(days=lag)][state].values)], axis=1)
+                                                                         datetime.timedelta(days=lag)][state].values)], axis=1)
     return newdf
 
 def get_social_distancing(df, intervention_tried):
