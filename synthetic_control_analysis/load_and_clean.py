@@ -18,7 +18,7 @@ _google_web_path = "https://www.gstatic.com/covid19/mobility/Global_Mobility_Rep
 _google_local_path = "../data/mobility/Global_Mobility_Report.csv"
 
 _apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/2010HotfixDev18/v3/en-us/applemobilitytrends-2020-06-14.csv"
-_apple_local_path = "../data/mobility/applemobilitytrends-2020-05-30.csv"
+_apple_local_path = "../data/mobility/applemobilitytrends.csv"
 
 _IHME_web_path = None #TODO unimplemented, line 177
 _IHME_local_path = "../data/intervention/sdc_sources.csv"
