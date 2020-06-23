@@ -6,5 +6,4 @@ There is a wrapper function called synth\_control\_predictions() which calls the
 
 There are different datasets used for this analysis which are not included to this repository for space constraints, once the load function is executed the latet copy of the datasets is downloaded and a local copy kept.
 
-![Alt text](https://github.com/niloofarbayat/COVID19-synthetic-contro-analysis/blob/master/Data%20Hierarchy.png?raw=true "Data Hierarchy")
 
