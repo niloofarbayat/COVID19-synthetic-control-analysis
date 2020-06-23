@@ -28,11 +28,11 @@ _county_pop_local_path = "../data/population/co-est2019-annres.xlsx"
 
 # load and clean NYTimes data
 def _import_NYTimes_US():
-    country = pd.read_csv(_NYTimes_local_path + "us.csv")
+    country = pd.read_csv(_NYTimes_local_path + "us.csv")[1:]
     return country
 
 def _import_NYTimes_states():
-    states = pd.read_csv(_NYTimes_local_path + "us-states.csv")
+    states = pd.read_csv(_NYTimes_local_path + "us-states.csv")[1:]
 
 
     cases = states.pivot(index='date', columns='state', values='cases')
@@ -43,7 +43,7 @@ def _import_NYTimes_states():
 
     return cases, deaths, states
 def _import_NYTimes_counties():
-    counties = pd.read_csv(_NYTimes_local_path + "us-counties.csv")
+    counties = pd.read_csv(_NYTimes_local_path + "us-counties.csv")[1:]
 
     counties['county_state'] = counties['county']+'-'+counties['state']
     cases = counties.pivot_table(index='date', columns='county_state', values='cases')
