@@ -24,24 +24,39 @@ def create_rolling_data(df, rolling_average_duration = 7):
                                 mean().iloc[rolling_average_duration:,:]
 
 #functions to summarized the intervention table based on the given intervention, the output will be used in filter_data_by_intervention
-def create_intervention_data(sd_data, intervention):
-    intervention_table = sd_data[['country','name',intervention]]
-    intervention_table[intervention] = intervention_table[intervention].str.replace(".","-")
+def create_population_adjusted_data(df, population):
 
-    for place in intervention_table.name:
-#or place in ['Belgium', 'Finland']:
-        split_values = intervention_table[intervention_table.name == place][intervention].str.split("-").values
-        #print(split_values)
-        #print(place, split_values, split_values.shape)
-        if(split_values): #check null
-            if(len(split_values[0])>1):#check not implemented
-            #print(split_values[0])
-            #print(place)
-                intervention_table.loc[intervention_table.name == place, "date"] = split_values[0][2]+"-"+split_values[0][1]+"-"+split_values[0][0]
+    new_df = pd.DataFrame()
+
+    country_total = {}
+    exception_list = []
+    for state in df:
+
+        try:
+            new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['Country'] == state].Value)], axis = 1, sort = True)
+        except:
+            if '-' in state:
+                name = state[:state.index('-')]
+                if name not in country_total:
+                    country_total[name] = df[state]
+                else:
+                    country_total[name] += df[state] #Collect the data for the countries with province
             else:
-                print(place)
-                print(intervention_table[intervention_table.name == place])
-    return intervention_table
+                exception_list.append(state)
+    for country in country_total: 
+        country_total[country].name = country
+        new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['Country'] == country].Value)], axis = 1, sort = True)
+
+    return new_df
+
+#Functions to create intervention adjusted data based on the social distancing metrics.
+
+def create_intervention_adjusted_data(df, intervention, rolling_average_duration): 
+    intervention_adjusted, intervention_dates = filter_data_by_intervention(df, intervention)
+    intervention_adjusted_daily = create_rolling_data(intervention_adjusted, rolling_average_duration)
+    intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
+    return intervention_adjusted, intervention_adjusted_daily, intervention_dates
+
 
 # function to create filtered dataframe based on intervention dates and align timeseries
 
@@ -181,16 +196,17 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         ind = np.argpartition(rscModel.model.weights, -showstates)[-showstates:]
         topstates = [otherStates[i] for i in ind]
         if(showDonors):
-            plt.subplot(121)        
-            plt.barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
-            plt.title("Normalized weights for "+str(state).replace("-None",""))
-            plt.subplot(122)
+            donor = plt.subplot(121)        
+            donor.barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
+            donor.set_title("Normalized weights for "+str(state).replace("-None",""))
+            pred = plt.subplot(122)
         
         if(ylimit):
             plt.ylim(ylimit)
         if(logy):
             plt.yscale('log')
         if(showPlots):
+
             plt.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
             plt.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
             plt.plot(range(len(model_fit)), model_fit, label = 'Fitted model', color='g', linestyle=':')
@@ -210,7 +226,10 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             if (savePlots):
                 plt.savefig("../Figures/COVID/"+state+".png")        
             if(animation):
-                animation.snap()           
+                animation.snap()
+
+                #pred_plot.remove()
+
             else:
                 plt.show()    
     if(error<error_thresh):
