@@ -21,7 +21,7 @@ def create_filtered_data(df, threshold):
 
 def create_rolling_data(df, rolling_average_duration = 7):
     return df.diff().iloc[1:,:].rolling(rolling_average_duration).\
-                                mean().iloc[rolling_average_duration-1:,:]
+                                mean().iloc[rolling_average_duration:,:]
 
 #functions to summarized the intervention table based on the given intervention, the output will be used in filter_data_by_intervention
 def create_intervention_data(sd_data, intervention):
