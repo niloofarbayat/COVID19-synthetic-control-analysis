@@ -111,7 +111,7 @@ def mse(y1, y2):
  
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
-                               svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], 
+                               svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
                               donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20):
     #print('yo', list_of_dfs,'bo')
     #print(len(list_of_dfs))
@@ -195,34 +195,31 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         #     plt.figure(figsize=(16,6))
         ind = np.argpartition(rscModel.model.weights, -showstates)[-showstates:]
         topstates = [otherStates[i] for i in ind]
-        if(showDonors):
-            donor = plt.subplot(121)        
-            donor.barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
-            donor.set_title("Normalized weights for "+str(state).replace("-None",""))
-            pred = plt.subplot(122)
-        
+        if showDonors:      
+            axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
+            axes[0].set_title("Normalized weights for "+str(state).replace("-None",""))
+        ax = axes[-1] if showDonors else axes
         if(ylimit):
-            plt.ylim(ylimit)
+            ax.set_ylim(ylimit)
         if(logy):
-            plt.yscale('log')
+            ax.set_yscale('log')
         if(showPlots):
-
-            plt.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
-            plt.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
-            plt.plot(range(len(model_fit)), model_fit, label = 'Fitted model', color='g', linestyle=':')
-            plt.axvline(x=low_thresh-1, color='k', linestyle='--', linewidth=4)
-            plt.grid()
+            ax.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
+            ax.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
+            ax.plot(range(len(model_fit)), model_fit, label = 'Fitted model', color='g', linestyle=':')
+            ax.axvline(x=low_thresh-1, color='k', linestyle='--', linewidth=4)
+            ax.grid()
             if showDonors:
-                plt.title(title_text+" for "+str(state).replace("-None",""))
-                plt.xlabel("Days since Intervention")
-                plt.ylabel(yaxis)
-                plt.legend(['Actuals', 'Predictions', 'Fitted Model'])
+                ax.set_title(title_text+" for "+str(state).replace("-None",""))
+                ax.set_xlabel("Days since Intervention")
+                ax.set_ylabel(yaxis)
+                ax.legend(['Actuals', 'Predictions', 'Fitted Model'])
             else:
-                plt.tick_params(axis='both', which='major', labelsize=FONTSIZE)
-                plt.title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                plt.xlabel("Days since Intervention", fontsize=FONTSIZE)
-                plt.ylabel(yaxis, fontsize=FONTSIZE)
-                plt.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+                ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
+                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
+                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
                 plt.savefig("../Figures/COVID/"+state+".png")        
             if(animation):
