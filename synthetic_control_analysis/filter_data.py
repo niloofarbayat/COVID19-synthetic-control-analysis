@@ -24,28 +24,45 @@ def create_rolling_data(df, rolling_average_duration = 7):
                                 mean().iloc[rolling_average_duration:,:]
 
 #functions to summarized the intervention table based on the given intervention, the output will be used in filter_data_by_intervention
-def create_population_adjusted_data(df, population):
+def create_population_adjusted_data(df, population, show_exception = False):
 
     new_df = pd.DataFrame()
 
     country_total = {}
     exception_list = []
     for state in df:
-
         try:
             new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['Country'] == state].Value)], axis = 1, sort = True)
         except:
             if '-' in state:
-                name = state[:state.index('-')]
-                if name not in country_total:
-                    country_total[name] = df[state]
+                country_name = state[:state.index('-')]
+                region_name = state[state.index('-') + 1:]
+
+                if region_name in list(population['Country']):
+                    # Indicate the this is a independent region, collect the region data
+
+                    new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['Country'] == region_name].Value)], axis = 1, sort = True)
                 else:
-                    country_total[name] += df[state] #Collect the data for the countries with province
+                    # Collect the province data
+
+                    if country_name not in country_total:
+                        country_total[country_name] = df[state]
+                    else:
+                        country_total[country_name] += df[state] #Collect the data for the countries with province
             else:
                 exception_list.append(state)
     for country in country_total: 
-        country_total[country].name = country
-        new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['Country'] == country].Value)], axis = 1, sort = True)
+
+        if country in new_df.columns:
+            new_df[country] += country_total[country]
+        else:
+
+            country_total[country].name = country
+            new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['Country'] == country].Value)], axis = 1, sort = True)
+
+    if show_exception:
+
+        print('These countries/region do not have population data {}'.format(exception_list))
 
     return new_df
 
