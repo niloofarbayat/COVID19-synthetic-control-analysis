@@ -145,6 +145,7 @@ def _import_population_data():
     us_state_population['Country'] = state_population.index
     us_state_population['Value'] = state_population[[2019]].values
     all_population = pd.concat([country_population, us_state_population], axis=0, ignore_index=True)
+    all_population.loc[26, 'Country'] = 'Georgian Republic'
     return all_population
 
 
