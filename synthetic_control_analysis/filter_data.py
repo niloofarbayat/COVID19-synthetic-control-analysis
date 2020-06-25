@@ -24,24 +24,27 @@ def create_rolling_data(df, rolling_average_duration = 7):
                                 mean().iloc[rolling_average_duration:,:]
 
 #functions to summarized the intervention table based on the given intervention, the output will be used in filter_data_by_intervention
-def create_population_adjusted_data(df, population, show_exception = False):
+def create_population_adjusted_data(df, population, show_exception = False, county = False):
 
     new_df = pd.DataFrame()
-
     country_total = {}
     exception_list = []
     for state in df:
         try:
-            new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['Country'] == state].Value)], axis = 1, sort = True)
+            new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['name'] == state].value)], axis = 1, sort = True)
         except:
+            if county:
+                exception_list.append(state)
+                continue 
+
             if '-' in state:
                 country_name = state[:state.index('-')]
                 region_name = state[state.index('-') + 1:]
 
-                if region_name in list(population['Country']):
+                if region_name in list(population['name']):
                     # Indicate the this is a independent region, collect the region data
 
-                    new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['Country'] == region_name].Value)], axis = 1, sort = True)
+                    new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['name'] == region_name].value)], axis = 1, sort = True)
                 else:
                     # Collect the province data
 
@@ -58,7 +61,7 @@ def create_population_adjusted_data(df, population, show_exception = False):
         else:
 
             country_total[country].name = country
-            new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['Country'] == country].Value)], axis = 1, sort = True)
+            new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['name'] == country].value)], axis = 1, sort = True)
 
     if show_exception:
 
@@ -196,13 +199,12 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         if (svdSpectrum):
             (U, s, Vh) = np.linalg.svd((trainDF[all_rows]) - np.mean(trainDF[all_rows]))
             s2 = np.power(s, 2)
-            figSV, axSV = plt.subplots(figsize=(8,6))
-            #plt.figure(figsize=(8,6))
-            axSV.plot(s2)
-            axSV.grid()
-            axSV.set_xlabel("Ordered Singular Values") 
-            axSV.set_ylabel("Energy")
-            axSV.set_title("Singular Value Spectrum")
+            plt.figure(figsize=(8,6))
+            plt.plot(s2)
+            plt.grid()
+            plt.xlabel("Ordered Singular Values") 
+            plt.ylabel("Energy")
+            plt.title("Singular Value Spectrum")
             plt.show()
         x_predictions=range(low_thresh,low_thresh+len(predictions))
         model_fit = np.dot(trainDF[otherStates][:], rscModel.model.weights)
