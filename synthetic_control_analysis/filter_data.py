@@ -132,7 +132,7 @@ def mse(y1, y2):
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
-                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20):
+                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, random_distribution=None):
     #print('yo', list_of_dfs,'bo')
     #print(len(list_of_dfs))
     df = list_of_dfs[0]
@@ -176,7 +176,11 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         all_rows = list.copy(otherStates)
         all_rows.append(state)
         if not mRSC:
-            trainDF=df.iloc[:low_thresh,:]
+            if random_distribution:
+                trainDF = df + random_distribution(df.shape)
+                trainDF = trainDF.iloc[:low_thresh,:]
+            else:
+                trainDF = df.iloc[:low_thresh,:]
         else:
             num_dimensions = len(lambdas)
             trainDF=pd.DataFrame()
@@ -184,7 +188,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             for i in range(num_dimensions):
                 trainDF=pd.concat([trainDF,lambdas[i]*list_of_dfs[i].iloc[:low_thresh,:]], axis=0)
         if not silent:
-            print(trainDF.shape)        
+            print(trainDF.shape)
         testDF=df.iloc[low_thresh+1:threshold,:]
         rscModel = RobustSyntheticControl(state, singVals, len(trainDF), probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=otherStates)
         rscModel.fit(trainDF)
