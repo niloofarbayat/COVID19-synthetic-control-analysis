@@ -207,7 +207,7 @@ def cluster_trend(list_of_dfs, threshold, low_thresh, targets, singVals=2,
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
-                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30):
+                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None):
     #print('yo', list_of_dfs,'bo')
     #print(len(list_of_dfs))
     df = list_of_dfs[0]
@@ -333,7 +333,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             elif(showPlots):
                 plt.show()    
     if(error<error_thresh):
-        return(dict(zip(otherStates, rscModel.model.weights/np.max(rscModel.model.weights))))
+        return(dict(zip(otherStates, rscModel.model.weights))))
     else:
         print(state, error)
         return(dict(zip(otherStates, -50*np.ones(len(rscModel.model.weights)))))
