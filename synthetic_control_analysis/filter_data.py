@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from tslib.src.synthcontrol.syntheticControl import RobustSyntheticControl
 from matplotlib import pyplot as plt
+import matplotlib.ticker as ticker
+
 
 
 
@@ -117,6 +119,10 @@ def get_social_distancing(df, intervention_tried):
 def mse(y1, y2):
     return np.sum((y1 - y2) ** 2) / len(y1)/np.sqrt(np.square(y1).sum())
 
+def compute_singular_values(df):
+    (U, s, Vh) = np.linalg.svd((df) - np.mean(df))
+    s2 = np.power(s, 2)
+    return pd.Series(s2)
 
 # function to build and plot synthetic control baswed projections. The first threshold is which regions to use in the donor pool 
 # - the ones that have had the timeseries for threshold days and above. The low_thresh is to do predictions for regions that
@@ -129,16 +135,17 @@ def mse(y1, y2):
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
-                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20):
+                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30):
     #print('yo', list_of_dfs,'bo')
     #print(len(list_of_dfs))
     df = list_of_dfs[0]
-    sizes = df.apply(pd.Series.last_valid_index)
-    sizes = sizes.fillna(0).astype(int)
+    
     
     if (donorPool):
         otherStates=donorPool.copy()
     else:
+        sizes = df.apply(pd.Series.last_valid_index)
+        sizes = sizes.fillna(0).astype(int)
         otherStates = list(sizes[sizes>threshold].index)
     if(exclude):
         for member in exclude:
@@ -162,7 +169,8 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
     if not silent:
         print(otherStates)
     if(do_only):
-        prediction_states = list(sizes[sizes.index.isin(do_only)].index)
+        #prediction_states = list(sizes[sizes.index.isin(do_only)].index)
+        prediction_states = do_only
         if not silent:
             print(prediction_states)
     else:
@@ -190,8 +198,8 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
     
         predictions = np.dot(testDF[otherStates].values, rscModel.model.weights)
         predictions_noisy = np.dot(testDF[otherStates].values, rscModel.model.weights)
-        x_actual=range(sizes[state])
-        actual = df.iloc[:sizes[state],:][state]
+        x_actual= df[state].index #range(sizes[state])
+        actual = df[state] #df.iloc[:sizes[state],:][state]
         
         if (svdSpectrum):
             (U, s, Vh) = np.linalg.svd((trainDF[all_rows]) - np.mean(trainDF[all_rows]))
@@ -203,7 +211,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             plt.ylabel("Energy")
             plt.title("Singular Value Spectrum")
             plt.show()
-        x_predictions=range(low_thresh,low_thresh+len(predictions))
+        x_predictions=df.index[low_thresh:low_thresh+len(predictions)] #range(low_thresh,low_thresh+len(predictions))
         model_fit = np.dot(trainDF[otherStates][:], rscModel.model.weights)
         error = mse(actual[:low_thresh], model_fit)
         if not silent:
@@ -223,8 +231,10 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         if(showPlots):
             ax.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
             ax.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
-            ax.plot(range(len(model_fit)), model_fit, label = 'Fitted model', color='g', linestyle=':')
-            ax.axvline(x=low_thresh-1, color='k', linestyle='--', linewidth=4)
+            ax.plot(df.index[:low_thresh], model_fit, label = 'Fitted model', color='g', linestyle=':')
+            ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
+
+            ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
             ax.grid()
             if showDonors:
                 ax.set_title(title_text+" for "+str(state).replace("-None",""))
@@ -244,10 +254,10 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
 
                 #pred_plot.remove()
 
-            else:
+            elif(showPlots):
                 plt.show()    
     if(error<error_thresh):
-        return(dict(zip(otherStates, rscModel.model.weights)))
+        return(dict(zip(otherStates, rscModel.model.weights/np.max(rscModel.model.weights))))
     else:
         print(state, error)
         return(dict(zip(otherStates, -50*np.ones(len(rscModel.model.weights)))))
