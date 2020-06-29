@@ -136,16 +136,31 @@ def _import_IHME_intervention():
 
 #Load and clean the population data
 def _import_population_data():
+
+
     country_population = pd.read_excel(_country_pop_local_path)
     county_population = pd.read_excel(_county_pop_local_path, header=[3])
-    new = county_population['Unnamed: 0'].str.replace(".","").str.replace(" County","").str.split(pat=",", expand=True)
+    new = county_population['Unnamed: 0'].str.strip(".").str.replace(" County","").str.split(pat=",", expand=True)
+
+    county_population['county'] = new[0] +'-' + new[1].str.strip()
     county_population['state']=new[1].str.strip()
+
+    county_population = county_population[['county', 2019, 'state']]
     state_population = county_population.groupby('state').sum()
     us_state_population = pd.DataFrame()
     us_state_population['Country'] = state_population.index
     us_state_population['Value'] = state_population[[2019]].values
-    all_population = pd.concat([country_population, us_state_population], axis=0, ignore_index=True)
-    all_population.loc[26, 'Country'] = 'Georgian Republic'
+    county_population = county_population.drop('state', axis = 1).dropna()
+
+    us_state_population.columns = ['name', 'value']
+    county_population.columns = ['name', 'value']
+    country_population.columns = ['name', 'value']
+
+    all_population = pd.concat([country_population, us_state_population, county_population], axis=0, ignore_index=True)
+    all_population.loc[26, 'name'] = 'Georgian Republic'
+    all_population.loc[2122, 'name'] = 'New York City-New York'
+    all_population['name'] = all_population['name'].str.replace(' Parish', '')
+    
     return all_population
 
 
