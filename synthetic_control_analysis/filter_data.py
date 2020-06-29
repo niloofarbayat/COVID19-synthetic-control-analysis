@@ -4,6 +4,10 @@ import pandas as pd
 import numpy as np
 from tslib.src.synthcontrol.syntheticControl import RobustSyntheticControl
 from matplotlib import pyplot as plt
+import hdbscan
+from sklearn.cluster import KMeans, AgglomerativeClustering, AffinityPropagation, DBSCAN #For clustering
+from sklearn.mixture import GaussianMixture #For GMM clustering
+import matplotlib.ticker as ticker
 
 
 
@@ -128,7 +132,73 @@ def mse(y1, y2):
 # for i in range(20):
 #    synth_control_predictions(trial,35,5+i, "Rolling 5-day average deaths data", 2, ylimit=[], savePlots=False, do_only=target, showstates=12,
 #                               exclude=exclude1, animation=camera)
- 
+
+def plot_cluster(feature_dict, list_of_dfs, x_labels = [], y_labels = []):
+    #plot the images based on the result of cluster_state function
+    num_groups = len(feature_dict)
+    num_dfs = len(list_of_dfs)
+    i = 0
+    fig = plt.figure(figsize = (20.0, num_groups*10.0))
+
+
+    for index in feature_dict:
+        group = feature_dict[index]
+        ax_list = []
+        for j in range(len(list_of_dfs)):
+            ax_list.append(fig.add_subplot(num_groups,num_dfs,num_dfs*i+j + 1))
+            ax_list[j].xaxis.set_major_locator(ticker.MultipleLocator(15))
+            ax_list[j].plot(list_of_dfs[j].index, list_of_dfs[j][group][:])
+            ax_list[j].set_xlabel(x_labels[j])
+            ax_list[j].set_ylabel(y_labels[j])
+            ax_list[j].legend(group)
+
+        i += 1
+    plt.show()
+        
+def cluster_trend(list_of_dfs, threshold, low_thresh, targets, singVals=2, 
+                              logy=False, exclude=[], 
+                              showstates=4, donorPool=[], mRSC=False, lambdas=[1], error_thresh=1, 
+                              random_distribution=None, cluster_method = 'HDBSCAN', n_clusters = 5):
+    #cluster states/region/countries based on weights
+    weight_features = []
+    for target in targets:
+  
+        try:
+            newdata = synth_control_predictions(list_of_dfs,threshold, low_thresh,
+                                                "", singVals, ylimit=[], savePlots=False, do_only=[target], showstates=10, donorPool = donorPool,
+                                   exclude=exclude, svdSpectrum=False, silent=True, showDonors=False, showPlots=False, lambdas=lambdas, mRSC=False, error_thresh = 1)
+            weight_features.append(newdata)
+        except ValueError:
+            print(target)
+            continue
+
+    feature_list = pd.DataFrame((weight_features))
+    feature_list.index=targets
+    feature_list.fillna(0, inplace=True)
+    #feature_list = feature_list.apply(lambda x: x/x.max(), axis=1)
+    feature_columns = feature_list.columns
+
+    if cluster_method == 'HDBSCAN':
+        clusterer = hdbscan.HDBSCAN(min_cluster_size=2, cluster_selection_method='leaf')
+        clustering_labels = clusterer.fit_predict(feature_list[feature_columns])
+        feature_list['DB'] = clustering_labels
+        feature_dict = feature_list.groupby('DB').groups
+
+    if cluster_method == 'KMEANS':
+
+        kmeans = KMeans(n_clusters=n_clusters)
+        y = kmeans.fit_predict(feature_list[feature_columns])
+        feature_list.insert((feature_list.shape[1]),'KMeans',y)
+        feature_dict = feature_list.groupby('KMeans').groups
+
+    return feature_dict
+
+
+
+
+
+
+
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
