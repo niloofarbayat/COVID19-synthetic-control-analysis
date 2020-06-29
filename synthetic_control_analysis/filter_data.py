@@ -79,7 +79,7 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
 def create_intervention_adjusted_data(df, intervention, rolling_average_duration): 
     intervention_adjusted, intervention_dates = filter_data_by_intervention(df, intervention)
     intervention_adjusted_daily = create_rolling_data(intervention_adjusted, rolling_average_duration)
-    intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
+    #intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
     return intervention_adjusted, intervention_adjusted_daily, intervention_dates
 
 
@@ -333,7 +333,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             elif(showPlots):
                 plt.show()    
     if(error<error_thresh):
-        return(dict(zip(otherStates, rscModel.model.weights))))
+        return(dict(zip(otherStates, rscModel.model.weights)))
     else:
         print(state, error)
         return(dict(zip(otherStates, -50*np.ones(len(rscModel.model.weights)))))
