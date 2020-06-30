@@ -32,7 +32,7 @@ def create_rolling_data(df, rolling_average_duration = 7):
 def create_population_adjusted_data(df, population, show_exception = False, county = False):
 
     new_df = pd.DataFrame()
-    country_total = {}
+    # country_total = {}
     exception_list = []
     for state in df:
         try:
@@ -51,22 +51,27 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
 
                     new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['name'] == region_name].value)], axis = 1, sort = True)
                 else:
-                    # Collect the province data
 
-                    if country_name not in country_total:
-                        country_total[country_name] = df[state]
-                    else:
-                        country_total[country_name] += df[state] #Collect the data for the countries with province
+                    if country_name not in df.columns:
+
+                        exception_list.append(state)
+
+                    # # Collect the province data
+
+                    # if country_name not in country_total:
+                    #     country_total[country_name] = df[state]
+                    # else:
+                    #     country_total[country_name] += df[state] #Collect the data for the countries with province
             else:
                 exception_list.append(state)
-    for country in country_total: 
+    # for country in country_total: 
 
-        if country in new_df.columns:
-            new_df[country] += country_total[country]
-        else:
+    #     if country in new_df.columns:
+    #         new_df[country] += country_total[country]
+    #     else:
 
-            country_total[country].name = country
-            new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['name'] == country].value)], axis = 1, sort = True)
+    #         country_total[country].name = country
+    #         new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['name'] == country].value)], axis = 1, sort = True)
 
     if show_exception:
 
