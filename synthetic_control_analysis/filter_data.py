@@ -350,13 +350,19 @@ def create_peak_clusters(df, threshold=5):
     return global_peak_size
 
 
-def find_lockdown_date(state_list,df, mobility_us, max_days = 1, min_mobility = -10):
+def find_lockdown_date(state_list,df, mobility_us, max_days = 1, min_mobility = -10, all_populations = None):
     pattern = re.compile('(Unknown|Unassigned)')
     newdf = pd.DataFrame()
     lockdown_dates = {}
     for i in range(1,52):
         count = 0 
         for (date, value) in list(zip(mobility_us[state_list[i-1]].index,mobility_us[state_list[i-1]])):
+            if all_populations:
+                for j in range(len(all_populations)):
+                    if state_list[i-1] in all_populations[j]:
+                        min_mobility = (j+1)*(-10)
+                        break
+
             if value <= min_mobility:
                 count += 1
             elif value >= min_mobility:
