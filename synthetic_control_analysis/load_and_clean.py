@@ -161,7 +161,7 @@ def _import_population_data():
     all_population.loc[2122, 'name'] = 'New York City-New York'
     all_population['name'] = all_population['name'].str.replace(' Parish', '')
     
-    return all_population
+    return all_population, country_population, us_state_population, county_population
 
 
 
