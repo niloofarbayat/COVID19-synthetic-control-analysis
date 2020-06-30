@@ -24,9 +24,13 @@ def create_filtered_data(df, threshold):
             newdf = pd.concat([newdf, pd.DataFrame(columns=[location], data=df.loc[highnumber.index[0]:,location].values)], axis=1)
     return newdf
 
-def create_rolling_data(df, rolling_average_duration = 7):
-    return df.diff().iloc[1:,:].rolling(rolling_average_duration).\
+def create_rolling_data(df, rolling_average_duration = 7, force_monotonicity=True):
+    out = df.diff()
+    if force_monotonicity:
+        out[out < 0] = 0
+    out = out.iloc[1:,:].rolling(rolling_average_duration).\
                                 mean().iloc[rolling_average_duration:,:]
+    return out
 
 #functions to summarized the intervention table based on the given intervention, the output will be used in filter_data_by_intervention
 def create_population_adjusted_data(df, population, show_exception = False, county = False):
