@@ -32,7 +32,7 @@ def create_rolling_data(df, rolling_average_duration = 7):
 def create_population_adjusted_data(df, population, show_exception = False, county = False):
 
     new_df = pd.DataFrame()
-    country_total = {}
+    # country_total = {}
     exception_list = []
     for state in df:
         try:
@@ -51,22 +51,27 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
 
                     new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['name'] == region_name].value)], axis = 1, sort = True)
                 else:
-                    # Collect the province data
 
-                    if country_name not in country_total:
-                        country_total[country_name] = df[state]
-                    else:
-                        country_total[country_name] += df[state] #Collect the data for the countries with province
+                    if country_name not in df.columns:
+
+                        exception_list.append(state)
+
+                    # # Collect the province data
+
+                    # if country_name not in country_total:
+                    #     country_total[country_name] = df[state]
+                    # else:
+                    #     country_total[country_name] += df[state] #Collect the data for the countries with province
             else:
                 exception_list.append(state)
-    for country in country_total: 
+    # for country in country_total: 
 
-        if country in new_df.columns:
-            new_df[country] += country_total[country]
-        else:
+    #     if country in new_df.columns:
+    #         new_df[country] += country_total[country]
+    #     else:
 
-            country_total[country].name = country
-            new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['name'] == country].value)], axis = 1, sort = True)
+    #         country_total[country].name = country
+    #         new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['name'] == country].value)], axis = 1, sort = True)
 
     if show_exception:
 
@@ -79,7 +84,7 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
 def create_intervention_adjusted_data(df, intervention, rolling_average_duration): 
     intervention_adjusted, intervention_dates = filter_data_by_intervention(df, intervention)
     intervention_adjusted_daily = create_rolling_data(intervention_adjusted, rolling_average_duration)
-    intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
+    #intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
     return intervention_adjusted, intervention_adjusted_daily, intervention_dates
 
 
@@ -333,7 +338,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             elif(showPlots):
                 plt.show()    
     if(error<error_thresh):
-        return(dict(zip(otherStates, rscModel.model.weights))))
+        return(dict(zip(otherStates, rscModel.model.weights)))
     else:
         print(state, error)
         return(dict(zip(otherStates, -50*np.ones(len(rscModel.model.weights)))))
@@ -350,13 +355,19 @@ def create_peak_clusters(df, threshold=5):
     return global_peak_size
 
 
-def find_lockdown_date(state_list,df, mobility_us, max_days = 1, min_mobility = -10):
+def find_lockdown_date(state_list,df, mobility_us, max_days = 1, min_mobility = -10, all_populations = None):
     pattern = re.compile('(Unknown|Unassigned)')
     newdf = pd.DataFrame()
     lockdown_dates = {}
     for i in range(1,52):
         count = 0 
         for (date, value) in list(zip(mobility_us[state_list[i-1]].index,mobility_us[state_list[i-1]])):
+            if all_populations:
+                for j in range(len(all_populations)):
+                    if state_list[i-1] in all_populations[j]:
+                        min_mobility = (j+1)*(-10)
+                        break
+
             if value <= min_mobility:
                 count += 1
             elif value >= min_mobility:

@@ -58,6 +58,11 @@ def _import_NYTimes_counties():
 def _import_JHU_global():
     deaths = pd.read_csv(_JHU_local_path + "csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
     cases = pd.read_csv(_JHU_local_path + "csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+    country_deaths = deaths.dropna(subset = ['Province/State']).groupby('Country/Region').sum()
+    country_cases = cases.dropna(subset = ['Province/State']).groupby('Country/Region').sum()
+
+    country_deaths = country_deaths.loc[:, '1/22/20':].T
+    country_cases = country_cases.loc[:, '1/22/20':].T
 
     deaths['Province-Country'] = deaths['Country/Region']+'-'+deaths['Province/State'].fillna("None")
     deaths['Province-Country'] = deaths['Province-Country'].str.replace("-None", "")
@@ -65,11 +70,19 @@ def _import_JHU_global():
     deaths.rename(index={'Georgia':'Georgian Republic'}, inplace=True)
     deaths_after_Jan22 = deaths.loc[:, '1/22/20':].T
 
+    for country in country_deaths.columns:
+	    if country not in deaths_after_Jan22.columns:
+	        deaths_after_Jan22[country] = country_deaths[country]
+
     cases['Province-Country'] = cases['Country/Region']+'-'+cases['Province/State'].fillna("None")
     cases['Province-Country'] = cases['Province-Country'].str.replace("-None", "")
     cases = cases.set_index('Province-Country')
     cases.rename(index={'Georgia':'Georgian Republic'}, inplace=True)
     cases_after_Jan22 = cases.loc[:, '1/22/20':].T
+
+    for country in country_cases.columns:
+	    if country not in cases_after_Jan22.columns:
+	        cases_after_Jan22[country] = country_cases[country]
 
     cases_after_Jan22.index = pd.to_datetime(cases_after_Jan22.index, format='%m/%d/%y').strftime('%Y-%m-%d')
     deaths_after_Jan22.index = pd.to_datetime(deaths_after_Jan22.index, format='%m/%d/%y').strftime('%Y-%m-%d')
@@ -156,12 +169,15 @@ def _import_population_data():
     county_population.columns = ['name', 'value']
     country_population.columns = ['name', 'value']
 
+    county_population.loc[1859, 'name'] = 'New York City-New York'
+    country_population.loc[26, 'name'] = 'Georgian Republic'
+
+    county_population['name'] = county_population['name'].str.replace(' Parish', '')
+
     all_population = pd.concat([country_population, us_state_population, county_population], axis=0, ignore_index=True)
-    all_population.loc[26, 'name'] = 'Georgian Republic'
-    all_population.loc[2122, 'name'] = 'New York City-New York'
-    all_population['name'] = all_population['name'].str.replace(' Parish', '')
     
-    return all_population
+    
+    return all_population, country_population, us_state_population, county_population
 
 
 
