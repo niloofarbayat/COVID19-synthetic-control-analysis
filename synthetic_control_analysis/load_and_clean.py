@@ -26,6 +26,8 @@ _IHME_local_path = "../data/intervention/sdc_sources.csv"
 _country_pop_local_path = "../data/population/country_pop_WDI.xlsx"
 _county_pop_local_path = "../data/population/co-est2019-annres.xlsx"
 
+_state_reopen_local_path = "../data/intervention/state_reopen_data.csv"
+
 # load and clean NYTimes data
 def _import_NYTimes_US():
     country = pd.read_csv(_NYTimes_local_path + "us.csv")[1:]
@@ -179,6 +181,9 @@ def _import_population_data():
     
     return all_population, country_population, us_state_population, county_population
 
+def _import_state_reopen_data():
+    return pd.read_csv(_state_reopen_local_path, index_col = 0)
+
 
 
 
@@ -238,7 +243,8 @@ def load_clean(dataset):
                         'JHU US' : _import_JHU_US,
                         'mobility' : _import_mobility,
                         'IHME intervention' : _import_IHME_intervention,  
-                        'population': _import_population_data  
+                        'population': _import_population_data,
+                        'state reopen': _import_state_reopen_data  
     }
 
     return _import_function_dictionary[dataset]()
