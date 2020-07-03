@@ -24,9 +24,13 @@ def create_filtered_data(df, threshold):
             newdf = pd.concat([newdf, pd.DataFrame(columns=[location], data=df.loc[highnumber.index[0]:,location].values)], axis=1)
     return newdf
 
-def create_rolling_data(df, rolling_average_duration = 7):
-    return df.diff().iloc[1:,:].rolling(rolling_average_duration).\
+def create_rolling_data(df, rolling_average_duration = 7, force_monotonicity=True):
+    out = df.diff()
+    if force_monotonicity:
+        out[out < 0] = 0
+    out = out.iloc[1:,:].rolling(rolling_average_duration).\
                                 mean().iloc[rolling_average_duration:,:]
+    return out
 
 #functions to summarized the intervention table based on the given intervention, the output will be used in filter_data_by_intervention
 def create_population_adjusted_data(df, population, show_exception = False, county = False):
@@ -355,19 +359,33 @@ def create_peak_clusters(df, threshold=5):
     return global_peak_size
 
 
+# account for the weekends in mobility data
+def is_weekend (date):   
+    first_weekend = datetime.datetime(2020,1,4)
+    try: 
+        delta = (date - first_weekend).days
+    except: 
+        delta = (datetime.datetime.strptime(date,'%Y-%m-%d') - first_weekend).days
+    if delta % 7 == 0 or delta % 7 == 1:
+        return True
+    return False
+
+
+
 def find_lockdown_date(state_list,df, mobility_us, max_days = 1, min_mobility = -10, all_populations = None):
     pattern = re.compile('(Unknown|Unassigned)')
     newdf = pd.DataFrame()
     lockdown_dates = {}
     for i in range(1,52):
+        if all_populations:
+            for j in range(len(all_populations)):
+                if state_list[i-1] in all_populations[j]:
+                    min_mobility = (j+1)*(-10)
+                    break
         count = 0 
         for (date, value) in list(zip(mobility_us[state_list[i-1]].index,mobility_us[state_list[i-1]])):
-            if all_populations:
-                for j in range(len(all_populations)):
-                    if state_list[i-1] in all_populations[j]:
-                        min_mobility = (j+1)*(-10)
-                        break
-
+            if is_weekend(date):
+                continue
             if value <= min_mobility:
                 count += 1
             elif value >= min_mobility:
