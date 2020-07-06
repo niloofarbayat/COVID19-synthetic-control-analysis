@@ -191,6 +191,7 @@ def _import_state_reopen_data():
 
 # update New York Times data
 def _update_NYTimes():
+    os.system("git -C %s reset --hard" % _NYTimes_local_path)
     if os.system("git -C %s pull" % _NYTimes_local_path) != 0:
         if os.system("git clone %s %s" % (_NYTimes_web_path, _NYTimes_local_path)) != 0:
             print("Unable to update NYTimes data", file=sys.stderr)
@@ -199,6 +200,7 @@ def _update_NYTimes():
 
 # update JHU data
 def _update_JHU():
+    os.system("git -C %s reset --hard" % _NYTimes_local_path)
     if os.system("git -C %s pull" % _JHU_local_path) != 0:
         if os.system("git clone %s %s" % (_JHU_web_path, _JHU_local_path)) != 0:
             print("Unable to update JHU data", file=sys.stderr)
@@ -261,7 +263,7 @@ def update_data(dataset=None):
     }
 
     if dataset:
-        return _update_function_dictionary[dataset]
+        return _update_function_dictionary[dataset]()
 
     out = 0
     for _, f in _update_function_dictionary.items():
