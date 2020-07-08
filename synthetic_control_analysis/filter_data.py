@@ -152,7 +152,7 @@ def plot_cluster(feature_dict, list_of_dfs, x_labels = [], y_labels = []):
     num_groups = len(feature_dict)
     num_dfs = len(list_of_dfs)
     i = 0
-    fig = plt.figure(figsize = (20.0, num_groups*10.0))
+    fig = plt.figure(figsize = (20.0, num_groups*8.0))
 
 
     for index in feature_dict:
@@ -169,7 +169,7 @@ def plot_cluster(feature_dict, list_of_dfs, x_labels = [], y_labels = []):
         i += 1
     plt.show()
         
-def cluster_trend(list_of_dfs, threshold, low_thresh, targets, singVals=2, 
+def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2, 
                               logy=False, exclude=[], 
                               showstates=4, donorPool=[], mRSC=False, lambdas=[1], error_thresh=1, 
                               random_distribution=None, cluster_method = 'HDBSCAN', n_clusters = 5):
@@ -178,9 +178,9 @@ def cluster_trend(list_of_dfs, threshold, low_thresh, targets, singVals=2,
     for target in targets:
   
         try:
-            newdata = synth_control_predictions(list_of_dfs,threshold, low_thresh,
+            newdata = synth_control_predictions(list_of_dfs,low_thresh[target] - 7 + delta, low_thresh[target] - 7,
                                                 "", singVals, ylimit=[], savePlots=False, do_only=[target], showstates=10, donorPool = donorPool,
-                                   exclude=exclude, svdSpectrum=False, silent=True, showDonors=False, showPlots=False, lambdas=lambdas, mRSC=False, error_thresh = 1)
+                                   exclude=exclude, svdSpectrum=False, silent=True, showDonors=False, showPlots=False, lambdas=lambdas, mRSC=False, error_thresh = error_thresh)
             weight_features.append(newdata)
         except ValueError:
             print(target)
