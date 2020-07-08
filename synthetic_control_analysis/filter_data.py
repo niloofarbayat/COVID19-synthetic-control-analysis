@@ -221,6 +221,8 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
                               donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None):
+    
+    
     #print('yo', list_of_dfs,'bo')
     #print(len(list_of_dfs))
     df = list_of_dfs[0]
@@ -296,9 +298,9 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             plt.figure(figsize=(8,6))
             plt.plot(s2)
             plt.grid()
-            plt.xlabel("Ordered Singular Values") 
-            plt.ylabel("Energy")
-            plt.title("Singular Value Spectrum")
+            plt.xlabel("Ordered Singular Values", fontsize=FONTSIZE) 
+            plt.ylabel("Energy", fontsize=FONTSIZE)
+            plt.title("Singular Value Spectrum", fontsize=FONTSIZE)
             plt.show()
         x_predictions=df.index[low_thresh:low_thresh+len(predictions)] #range(low_thresh,low_thresh+len(predictions))
         model_fit = np.dot(trainDF[otherStates][:], rscModel.model.weights)
@@ -311,7 +313,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         topstates = [otherStates[i] for i in ind]
         if showDonors:      
             axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
-            axes[0].set_title("Normalized weights for "+str(state).replace("-None",""))
+            axes[0].set_title("Normalized weights for "+str(state).replace("-None",""), fontsize=FONTSIZE)
         ax = axes[-1] if showDonors else axes
         if(ylimit):
             ax.set_ylim(ylimit)
@@ -326,10 +328,10 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
             ax.grid()
             if showDonors:
-                ax.set_title(title_text+" for "+str(state).replace("-None",""))
-                ax.set_xlabel("Days since Intervention")
-                ax.set_ylabel(yaxis)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'])
+                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
+                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             else:
                 ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
                 ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
