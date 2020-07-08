@@ -191,6 +191,7 @@ def _import_state_reopen_data():
 
 # update New York Times data
 def _update_NYTimes():
+    os.system("git -C %s reset --hard" % _NYTimes_local_path)
     if os.system("git -C %s pull" % _NYTimes_local_path) != 0:
         if os.system("git clone %s %s" % (_NYTimes_web_path, _NYTimes_local_path)) != 0:
             print("Unable to update NYTimes data", file=sys.stderr)
@@ -199,6 +200,7 @@ def _update_NYTimes():
 
 # update JHU data
 def _update_JHU():
+    os.system("git -C %s reset --hard" % _NYTimes_local_path)
     if os.system("git -C %s pull" % _JHU_local_path) != 0:
         if os.system("git clone %s %s" % (_JHU_web_path, _JHU_local_path)) != 0:
             print("Unable to update JHU data", file=sys.stderr)
@@ -207,16 +209,20 @@ def _update_JHU():
 
 # update Google mobility data
 def _update_google():
-    if os.system("curl -o %s -z %s %s" % (_google_local_path, _google_local_path, _google_web_path)) != 0:
+    google_hidden_path = "../data/mobility/.Global_Mobility_Report.csv";
+    if os.system("curl -o %s -z %s %s" % (google_hidden_path, google_hidden_path, _google_web_path)) != 0:
         print("Unable to update Google mobility data", file=sys.stderr)
         return 1
+    os.system("cp %s %s" % (google_hidden_path, _google_local_path))
     return 0
 
 # update Apple data
 def _update_apple():
-    if os.system("curl -o %s -z %s %s" % (_apple_local_path, _apple_local_path, _apple_web_path)) != 0:
+    apple_hidden_path = "../data/mobility/.applemobilitytrends.csv";
+    if os.system("curl -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path)) != 0:
         print("Unable to update Apple mobility data", file=sys.stderr)
         return 1
+    os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
     return 0
 
 # update IHME data
@@ -261,7 +267,7 @@ def update_data(dataset=None):
     }
 
     if dataset:
-        return _update_function_dictionary[dataset]
+        return _update_function_dictionary[dataset]()
 
     out = 0
     for _, f in _update_function_dictionary.items():
