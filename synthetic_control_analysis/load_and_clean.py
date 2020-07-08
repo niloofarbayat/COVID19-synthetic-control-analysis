@@ -209,16 +209,20 @@ def _update_JHU():
 
 # update Google mobility data
 def _update_google():
-    if os.system("curl -o %s -z %s %s" % (_google_local_path, _google_local_path, _google_web_path)) != 0:
+    google_hidden_path = "../data/mobility/.Global_Mobility_Report.csv";
+    if os.system("curl -o %s -z %s %s" % (google_hidden_path, google_hidden_path, _google_web_path)) != 0:
         print("Unable to update Google mobility data", file=sys.stderr)
         return 1
+    os.system("cp %s %s" % (google_hidden_path, _google_local_path))
     return 0
 
 # update Apple data
 def _update_apple():
-    if os.system("curl -o %s -z %s %s" % (_apple_local_path, _apple_local_path, _apple_web_path)) != 0:
+    apple_hidden_path = "../data/mobility/.applemobilitytrends.csv";
+    if os.system("curl -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path)) != 0:
         print("Unable to update Apple mobility data", file=sys.stderr)
         return 1
+    os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
     return 0
 
 # update IHME data
