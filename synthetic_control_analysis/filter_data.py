@@ -40,7 +40,7 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
     exception_list = []
     for state in df:
         try:
-            new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['name'] == state].value)], axis = 1, sort = True)
+            new_df = pd.concat([new_df, 1000000 *df[state]/float(population.loc[state].value)], axis = 1, sort = True)
         except:
             if county:
                 exception_list.append(state)
@@ -50,32 +50,18 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
                 country_name = state[:state.index('-')]
                 region_name = state[state.index('-') + 1:]
 
-                if region_name in list(population['name']):
+                if region_name in list(population.index):
                     # Indicate the this is a independent region, collect the region data
 
-                    new_df = pd.concat([new_df, 1000000 *df[state]/float(population[population['name'] == region_name].value)], axis = 1, sort = True)
+                    new_df = pd.concat([new_df, 1000000 *df[state]/float(population.loc[region_name].value)], axis = 1, sort = True)
                 else:
 
                     if country_name not in df.columns:
 
                         exception_list.append(state)
 
-                    # # Collect the province data
-
-                    # if country_name not in country_total:
-                    #     country_total[country_name] = df[state]
-                    # else:
-                    #     country_total[country_name] += df[state] #Collect the data for the countries with province
             else:
                 exception_list.append(state)
-    # for country in country_total: 
-
-    #     if country in new_df.columns:
-    #         new_df[country] += country_total[country]
-    #     else:
-
-    #         country_total[country].name = country
-    #         new_df = pd.concat([new_df, 1000000 *country_total[country]/float(population[population['name'] == country].value)], axis = 1, sort = True)
 
     if show_exception:
 
@@ -181,14 +167,13 @@ def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2,
         else:
             low = low_thresh[target]
   
-        try:
-            newdata = synth_control_predictions(list_of_dfs,low - 7 + delta, low - 7,
-                                                "", singVals, ylimit=[], savePlots=False, do_only=[target], showstates=10, donorPool = donorPool,
-                                   exclude=exclude, svdSpectrum=False, silent=True, showDonors=False, showPlots=False, lambdas=lambdas, mRSC=False, error_thresh = error_thresh)
-            weight_features.append(newdata)
-        except ValueError:
-            print(target)
-            continue
+        newdata = synth_control_predictions(list_of_dfs,low - 7 + delta, low - 7,
+                                            "", singVals, ylimit=[], savePlots=False, do_only=[target], showstates=10, donorPool = donorPool,
+                               exclude=exclude, svdSpectrum=False, silent=True, showDonors=False, showPlots=False, lambdas=lambdas, mRSC=False, error_thresh = error_thresh)
+        weight_features.append(newdata)
+        # except ValueError:
+        #     print(target)
+        #     continue
 
     feature_list = pd.DataFrame((weight_features))
     feature_list.index=targets

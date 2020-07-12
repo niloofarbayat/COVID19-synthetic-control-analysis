@@ -28,6 +28,37 @@ _county_pop_local_path = "../data/population/co-est2019-annres.xlsx"
 
 _state_reopen_local_path = "../data/intervention/state_reopen_data.csv"
 
+
+northeast = ["Connecticut","Maine","Massachusetts","New Hampshire",
+             "Rhode Island","Vermont","New Jersey","New York",
+             "Pennsylvania", "Delaware","District of Columbia","Maryland"]
+midwest = ["Indiana","Illinois","Michigan","Ohio","Wisconsin",
+             "Iowa","Kansas","Minnesota","Missouri","Nebraska",
+             "North Dakota","South Dakota"]
+south = ["Florida","Georgia",
+            "North Carolina","South Carolina","Virginia",
+            "West Virginia","Alabama","Kentucky","Mississippi",
+            "Tennessee","Arkansas","Louisiana","Oklahoma","Texas"]
+
+west= ["Arizona","Colorado","Idaho","New Mexico","Montana",
+            "Utah","Nevada","Wyoming","Alaska","California",
+            "Hawaii","Oregon","Washington"]
+
+masks_mandated = ['New York', 'Maine', 'Maryland', 'Virginia', 'New Mexico', 'California', 'Michigan', 'Illinois', 'Massachusetts','Delaware', 'Rhode Island']
+
+masks_recommended = ['Montana', 'Idaho', 'Utah', 'Arizona', 'North Dakota', 'South Dakota', 'Kansas', 'Oklahoma', 
+                     'Texas', 'North Carolina', 'South Carolina', 'West Virginia', 'Wisconsin','Iowa', 'Missouri', 'Alaska']
+
+eu_countries = ['Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czechia', 'Denmark',
+   'Estonia', 'Finland', 'France', 'Germany', 'Greece', 'Hungary', 'Ireland',
+   'Italy', 'Latvia', 'Lithuania', 'Luxembourg', 'Malta', 'Netherlands',
+   'Poland', 'Portugal', 'Romania', 'Slovenia', 'Spain', 'Sweden']
+
+regions = {'Northeast': northeast, 
+           'Midwest':midwest, 
+           'South':south, 
+           'West': west}
+
 # load and clean NYTimes data
 def _import_NYTimes_US():
     country = pd.read_csv(_NYTimes_local_path + "us.csv")[1:]
@@ -39,6 +70,10 @@ def _import_NYTimes_states():
 
     cases = states.pivot(index='date', columns='state', values='cases')
     deaths = states.pivot(index='date', columns='state', values='deaths')
+
+    for region in regions:
+        cases[region] = cases[regions[region]].sum(axis = 1)
+        deaths[region] = deaths[regions[region]].sum(axis = 1)
     cases = cases.fillna(0)
     deaths = deaths.fillna(0)
 
@@ -147,6 +182,23 @@ def _import_IHME_intervention():
 
         row['last date'] = np.max(dates_of_intervention)
 
+    i = len(sd_data.index)
+
+    for region in regions:
+        info = [np.nan for i in range(len(sd_data.loc[0]))]
+        info[0] = region
+        info[1] = 'USA'
+        
+        dates = []
+        for state in regions[region]:
+            dates.append(sd_data[sd_data['name'] == state]['last date'].values[0])
+        info[-1] = np.max(dates)
+
+        sd_data.loc[i] = info
+
+        i += 1
+
+
     return sd_data
 
 #Load and clean the population data
@@ -166,18 +218,27 @@ def _import_population_data():
     us_state_population['Country'] = state_population.index
     us_state_population['Value'] = state_population[[2019]].values
     county_population = county_population.drop('state', axis = 1).dropna()
+    
 
     us_state_population.columns = ['name', 'value']
     county_population.columns = ['name', 'value']
     country_population.columns = ['name', 'value']
 
-    county_population.loc[1859, 'name'] = 'New York City-New York'
-    country_population.loc[26, 'name'] = 'Georgian Republic'
-
     county_population['name'] = county_population['name'].str.replace(' Parish', '')
 
-    all_population = pd.concat([country_population, us_state_population, county_population], axis=0, ignore_index=True)
     
+    us_state_population = us_state_population.set_index('name')
+    county_population = county_population.set_index('name')
+    country_population = country_population.set_index('name')
+
+    county_population.rename(index={'New York-New York':'New York City-New York'},inplace=True)
+    country_population.rename(index = {'Georgia':'Georgian Republic'},inplace=True)
+
+    all_population = pd.concat([country_population, us_state_population, county_population], axis=0, ignore_index=False)
+
+    for region in regions:
+        all_population.loc[region] = all_population.loc[regions[region]].sum()
+
     
     return all_population, country_population, us_state_population, county_population
 
