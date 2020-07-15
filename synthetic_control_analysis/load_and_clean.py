@@ -27,6 +27,7 @@ _country_pop_local_path = "../data/population/country_pop_WDI.xlsx"
 _county_pop_local_path = "../data/population/co-est2019-annres.xlsx"
 
 _state_reopen_local_path = "../data/intervention/state_reopen_data.csv"
+_temperature_local_path = "../data/temperature/temp_data.csv"
 
 
 northeast = ["Connecticut","Maine","Massachusetts","New Hampshire",
@@ -245,6 +246,13 @@ def _import_population_data():
 def _import_state_reopen_data():
     return pd.read_csv(_state_reopen_local_path, index_col = 0)
 
+def _import_temperature_data():
+    _temperature_local_path = "../data/temperature/temp_data.csv"
+    temp_data = pd.read_csv(_temperature_local_path)
+    temp_data['county_state'] = temp_data['County'] +'-' + temp_data['State']
+    return temp_data.pivot_table(index = "date", columns = "county_state", values = 'avg_temperature').loc['2020-01-22':]
+
+
 
 
 
@@ -311,7 +319,8 @@ def load_clean(dataset):
                         'mobility' : _import_mobility,
                         'IHME intervention' : _import_IHME_intervention,  
                         'population': _import_population_data,
-                        'state reopen': _import_state_reopen_data  
+                        'state reopen': _import_state_reopen_data,
+                        'temperature': _import_temperature_data  
     }
 
     return _import_function_dictionary[dataset]()
