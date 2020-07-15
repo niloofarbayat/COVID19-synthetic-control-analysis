@@ -172,7 +172,7 @@ def cluster_temperature(temp_data, cluster_method = 'HDBSCAN', n_clusters = 4, m
         y = AC.fit_predict(features)
         features['AC']= y
         feature_dict = features.groupby('AC').groups
-    return feature_dict
+    return feature_dict, features
 
 
         

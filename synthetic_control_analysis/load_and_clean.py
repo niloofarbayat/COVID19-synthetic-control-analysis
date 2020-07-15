@@ -250,7 +250,9 @@ def _import_temperature_data():
     _temperature_local_path = "../data/temperature/temp_data.csv"
     temp_data = pd.read_csv(_temperature_local_path)
     temp_data['county_state'] = temp_data['County'] +'-' + temp_data['State']
-    return temp_data.pivot_table(index = "date", columns = "county_state", values = 'avg_temperature').loc['2020-01-22':]
+    out = temp_data.pivot_table(index = "date", columns = "county_state", values = 'avg_temperature').loc['2020-01-22':]
+    fips = temp_data[['county_fips_code', 'county_state']]
+    return out, fips
 
 
 
