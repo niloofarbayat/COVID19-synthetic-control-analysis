@@ -2,6 +2,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import datetime
 
 
 
@@ -17,7 +18,8 @@ _JHU_local_path = "../data/covid/JHU/"
 _google_web_path = "https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv"
 _google_local_path = "../data/mobility/Global_Mobility_Report.csv"
 
-_apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/2010HotfixDev18/v3/en-us/applemobilitytrends-2020-06-14.csv"
+_apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/2012HotfixDev19/v3/en-us/applemobilitytrends-%s.csv"
+#"https://covid19-static.cdn-apple.com/covid19-mobility-data/2010HotfixDev18/v3/en-us/applemobilitytrends-2020-06-14.csv"
 _apple_local_path = "../data/mobility/applemobilitytrends.csv"
 
 _IHME_web_path = None #TODO unimplemented, line 177
@@ -249,9 +251,9 @@ def _import_state_reopen_data():
 def _import_temperature_data():
     _temperature_local_path = "../data/temperature/temp_data.csv"
     temp_data = pd.read_csv(_temperature_local_path)
-    temp_data['county_state'] = temp_data['County'] +'-' + temp_data['State']
+    temp_data['county_state'] = temp_data['county'] +'-' + temp_data['state']
     out = temp_data.pivot_table(index = "date", columns = "county_state", values = 'avg_temperature').loc['2020-01-22':]
-    fips = temp_data[['county_fips_code', 'county_state']]
+    fips = temp_data[['fips', 'county_state']]
     return out, fips
 
 
@@ -290,11 +292,15 @@ def _update_google():
 # update Apple data
 def _update_apple():
     apple_hidden_path = "../data/mobility/.applemobilitytrends.csv";
-    if os.system("curl -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path)) != 0:
-        print("Unable to update Apple mobility data", file=sys.stderr)
-        return 1
-    os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
-    return 0
+    #today = datetime.date.today() #.strftime('%Y-%m-%d')
+    #yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    for day in range(7):
+        attempt_date = (datetime.date.today() - datetime.timedelta(days=day)).strftime('%Y-%m-%d')
+        if os.system("curl -f -o %s %s" % (apple_hidden_path, _apple_web_path % attempt_date)) == 0:
+            os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
+            return 0
+    print("Unable to update Apple mobility data", file=sys.stderr)
+    return 1
 
 # update IHME data
 def _update_IHME():
