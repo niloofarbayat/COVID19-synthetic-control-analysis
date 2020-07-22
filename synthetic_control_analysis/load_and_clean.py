@@ -2,7 +2,6 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-import datetime
 
 
 
@@ -18,8 +17,7 @@ _JHU_local_path = "../data/covid/JHU/"
 _google_web_path = "https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv"
 _google_local_path = "../data/mobility/Global_Mobility_Report.csv"
 
-_apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/2012HotfixDev19/v3/en-us/applemobilitytrends-%s.csv"
-#"https://covid19-static.cdn-apple.com/covid19-mobility-data/2010HotfixDev18/v3/en-us/applemobilitytrends-2020-06-14.csv"
+_apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/2010HotfixDev18/v3/en-us/applemobilitytrends-2020-06-14.csv"
 _apple_local_path = "../data/mobility/applemobilitytrends.csv"
 
 _IHME_web_path = None #TODO unimplemented, line 177
@@ -32,35 +30,6 @@ _state_reopen_local_path = "../data/intervention/state_reopen_data.csv"
 _temperature_local_path = "../data/temperature/temp_data.csv"
 
 
-northeast = ["Connecticut","Maine","Massachusetts","New Hampshire",
-             "Rhode Island","Vermont","New Jersey","New York",
-             "Pennsylvania", "Delaware","District of Columbia","Maryland"]
-midwest = ["Indiana","Illinois","Michigan","Ohio","Wisconsin",
-             "Iowa","Kansas","Minnesota","Missouri","Nebraska",
-             "North Dakota","South Dakota"]
-south = ["Florida","Georgia",
-            "North Carolina","South Carolina","Virginia",
-            "West Virginia","Alabama","Kentucky","Mississippi",
-            "Tennessee","Arkansas","Louisiana","Oklahoma","Texas"]
-
-west= ["Arizona","Colorado","Idaho","New Mexico","Montana",
-            "Utah","Nevada","Wyoming","Alaska","California",
-            "Hawaii","Oregon","Washington"]
-
-masks_mandated = ['New York', 'Maine', 'Maryland', 'Virginia', 'New Mexico', 'California', 'Michigan', 'Illinois', 'Massachusetts','Delaware', 'Rhode Island']
-
-masks_recommended = ['Montana', 'Idaho', 'Utah', 'Arizona', 'North Dakota', 'South Dakota', 'Kansas', 'Oklahoma', 
-                     'Texas', 'North Carolina', 'South Carolina', 'West Virginia', 'Wisconsin','Iowa', 'Missouri', 'Alaska']
-
-eu_countries = ['Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czechia', 'Denmark',
-   'Estonia', 'Finland', 'France', 'Germany', 'Greece', 'Hungary', 'Ireland',
-   'Italy', 'Latvia', 'Lithuania', 'Luxembourg', 'Malta', 'Netherlands',
-   'Poland', 'Portugal', 'Romania', 'Slovenia', 'Spain', 'Sweden']
-
-regions = {'Northeast': northeast, 
-           'Midwest':midwest, 
-           'South':south, 
-           'West': west}
 
 # load and clean NYTimes data
 def _import_NYTimes_US():
@@ -74,9 +43,9 @@ def _import_NYTimes_states():
     cases = states.pivot(index='date', columns='state', values='cases')
     deaths = states.pivot(index='date', columns='state', values='deaths')
 
-    for region in regions:
-        cases[region] = cases[regions[region]].sum(axis = 1)
-        deaths[region] = deaths[regions[region]].sum(axis = 1)
+    # for region in regions:
+    #     cases[region] = cases[regions[region]].sum(axis = 1)
+    #     deaths[region] = deaths[regions[region]].sum(axis = 1)
     cases = cases.fillna(0)
     deaths = deaths.fillna(0)
 
@@ -185,21 +154,21 @@ def _import_IHME_intervention():
 
         row['last date'] = np.max(dates_of_intervention)
 
-    i = len(sd_data.index)
+    # i = len(sd_data.index)
 
-    for region in regions:
-        info = [np.nan for i in range(len(sd_data.loc[0]))]
-        info[0] = region
-        info[1] = 'USA'
+    # for region in regions:
+    #     info = [np.nan for i in range(len(sd_data.loc[0]))]
+    #     info[0] = region
+    #     info[1] = 'USA'
         
-        dates = []
-        for state in regions[region]:
-            dates.append(sd_data[sd_data['name'] == state]['last date'].values[0])
-        info[-1] = np.max(dates)
+    #     dates = []
+    #     for state in regions[region]:
+    #         dates.append(sd_data[sd_data['name'] == state]['last date'].values[0])
+    #     info[-1] = np.max(dates)
 
-        sd_data.loc[i] = info
+    #     sd_data.loc[i] = info
 
-        i += 1
+    #     i += 1
 
 
     return sd_data
@@ -239,8 +208,8 @@ def _import_population_data():
 
     all_population = pd.concat([country_population, us_state_population, county_population], axis=0, ignore_index=False)
 
-    for region in regions:
-        all_population.loc[region] = all_population.loc[regions[region]].sum()
+    # for region in regions:
+    #     all_population.loc[region] = all_population.loc[regions[region]].sum()
 
     
     return all_population, country_population, us_state_population, county_population
@@ -292,15 +261,11 @@ def _update_google():
 # update Apple data
 def _update_apple():
     apple_hidden_path = "../data/mobility/.applemobilitytrends.csv";
-    #today = datetime.date.today() #.strftime('%Y-%m-%d')
-    #yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-    for day in range(7):
-        attempt_date = (datetime.date.today() - datetime.timedelta(days=day)).strftime('%Y-%m-%d')
-        if os.system("curl -f -o %s %s" % (apple_hidden_path, _apple_web_path % attempt_date)) == 0:
-            os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
-            return 0
-    print("Unable to update Apple mobility data", file=sys.stderr)
-    return 1
+    if os.system("curl -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path)) != 0:
+        print("Unable to update Apple mobility data", file=sys.stderr)
+        return 1
+    os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
+    return 0
 
 # update IHME data
 def _update_IHME():
