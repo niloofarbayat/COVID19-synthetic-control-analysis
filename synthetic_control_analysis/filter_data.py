@@ -342,7 +342,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             ax.set_ylabel(yaxis, fontsize=FONTSIZE)
             ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
-                plt.savefig("../Figures/COVID/"+state+".png")        
+                plt.savefig("../Figures/COVID/"+state+".pdf", bbox_inches='tight')        
             if(animation):
                 animation.snap()
 
