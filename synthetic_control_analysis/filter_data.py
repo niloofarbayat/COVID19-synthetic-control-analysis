@@ -320,6 +320,8 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         if showDonors:      
             axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
             axes[0].set_title("Normalized weights for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+            axes[0].tick_params(axis='both', which='major', labelsize=FONTSIZE)
+
         ax = axes[-1] if showDonors else axes
         if(ylimit):
             ax.set_ylim(ylimit)
@@ -333,17 +335,12 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
 
             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
             ax.grid()
-            if showDonors:
-                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
-            else:
-                ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
-                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+            
+            ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
+            ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+            ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
+            ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+            ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
                 plt.savefig("../Figures/COVID/"+state+".png")        
             if(animation):
