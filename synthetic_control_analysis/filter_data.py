@@ -155,23 +155,23 @@ def plot_cluster(feature_dict, list_of_dfs, x_labels = [], y_labels = []):
         i += 1
     plt.show()
 
-def cluster_temperature(temp_data, cluster_method = 'HDBSCAN', n_clusters = 4, min_cluster_size = 20, min_sample = 3):
-    features = temp_data.T
+def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', n_clusters = 4, min_cluster_size = 2, min_sample = 1):
+    features = time_series_data.T
     if cluster_method == 'HDBSCAN':
         clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples = min_sample)
         clusterer.fit(features)
-        features['DB']= clusterer.labels_
-        feature_dict = features.groupby('DB').groups
+        features['cluster']= clusterer.labels_
+        feature_dict = features.groupby('cluster').groups
     if cluster_method == 'kmeans':
         kmeans = KMeans(n_clusters=n_clusters)
         y = kmeans.fit_predict(features)
-        features['kmeans']= y
-        feature_dict = features.groupby('kmeans').groups
+        features['cluster']= y
+        feature_dict = features.groupby('cluster').groups
     if cluster_method == 'AgglomerativeClustering':
         AC = AgglomerativeClustering(n_clusters=4)
         y = AC.fit_predict(features)
-        features['AC']= y
-        feature_dict = features.groupby('AC').groups
+        features['cluster']= y
+        feature_dict = features.groupby('cluster').groups
     return feature_dict, features
 
 
@@ -215,7 +215,7 @@ def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2,
         feature_list.insert((feature_list.shape[1]),'KMeans',y)
         feature_dict = feature_list.groupby('KMeans').groups
 
-    return feature_dict
+    return feature_dict, feature_list
 
 
 
@@ -320,8 +320,6 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         if showDonors:      
             axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
             axes[0].set_title("Normalized weights for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-            axes[0].tick_params(axis='both', which='major', labelsize=FONTSIZE)
-
         ax = axes[-1] if showDonors else axes
         if(ylimit):
             ax.set_ylim(ylimit)
@@ -335,14 +333,19 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
 
             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
             ax.grid()
-            
-            ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
-            ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-            ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-            ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-            ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+            if showDonors:
+                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
+                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+            else:
+                ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
+                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
+                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
-                plt.savefig("../Figures/COVID/"+state+".pdf", bbox_inches='tight')        
+                plt.savefig("../Figures/COVID/"+state+".png")        
             if(animation):
                 animation.snap()
 
