@@ -333,19 +333,14 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
 
             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
             ax.grid()
-            if showDonors:
+            ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
+            if title_text:
                 ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
-            else:
-                ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
-                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+            ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
+            ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+            ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
-                plt.savefig("../Figures/COVID/"+state+".png")        
+                plt.savefig("../Figures/COVID/"+state+'.pdf',bbox_inches='tight')    
             if(animation):
                 animation.snap()
 
