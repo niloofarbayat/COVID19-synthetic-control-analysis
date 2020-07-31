@@ -17,7 +17,7 @@ _JHU_local_path = "../data/covid/JHU/"
 _google_web_path = "https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv"
 _google_local_path = "../data/mobility/Global_Mobility_Report.csv"
 
-_apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/2013HotfixDev7/v3/en-us/applemobilitytrends-%s.csv"
+_apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/20%dHotfixDev%d/v3/en-us/applemobilitytrends-%s.csv"
 _apple_local_path = "../data/mobility/applemobilitytrends.csv"
 
 _IHME_web_path = None #TODO unimplemented, line 177
@@ -284,11 +284,24 @@ def _update_google():
 # update Apple data
 def _update_apple():
     apple_hidden_path = "../data/mobility/.applemobilitytrends.csv";
+    try:
+        date_last_mod = datetime.date.fromtimestamp(os.path.getmtime(apple_hidden_path))
+    except:
+        date_last_mod = datetime.date.min
     for day in range(7):
-        attempt_date = (datetime.date.today() - datetime.timedelta(days=day)).strftime('%Y-%m-%d')
-        if os.system("curl -f -o %s %s" % (apple_hidden_path, _apple_web_path % attempt_date)) == 0:
+        attempt_date = datetime.date.today() - datetime.timedelta(days=day)
+        print(attempt_date, date_last_mod, attempt_date <= date_last_mod)
+        if attempt_date <= date_last_mod:
             os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
+            os.system("touch %s" % apple_hidden_path)
             return 0
+        # attempt to find url:
+        for i in range(13, 13+10):
+            for dev in range(20):
+                if os.system("curl -f -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path % (i, dev, attempt_date.strftime('%Y-%m-%d')))) == 0:
+                    os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
+                    os.system("touch %s" % apple_hidden_path)
+                    return 0
     print("Unable to update Apple mobility data", file=sys.stderr)
     return 1
 
