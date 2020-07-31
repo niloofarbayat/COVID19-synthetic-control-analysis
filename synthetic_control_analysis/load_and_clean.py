@@ -257,28 +257,36 @@ def _import_CTP_state():
 # update New York Times data
 def _update_NYTimes():
     os.system("git -C %s reset --hard" % _NYTimes_local_path)
-    if os.system("git -C %s pull" % _NYTimes_local_path) != 0:
-        if os.system("git clone %s %s" % (_NYTimes_web_path, _NYTimes_local_path)) != 0:
-            print("Unable to update NYTimes data", file=sys.stderr)
+    return_value_pull = os.system("git -C %s pull" % _NYTimes_local_path)
+    if return_value_pull != 0:
+        return_value_clone = os.system("git clone %s %s" % (_NYTimes_web_path, _NYTimes_local_path))
+        if return_value_clone != 0:
+            print("Unable to update NYTimes data (pull: %d, clone: %d)" % (return_value_pull, return_value_clone), file=sys.stderr)
             return 1
     return 0
 
 # update JHU data
 def _update_JHU():
     os.system("git -C %s reset --hard" % _NYTimes_local_path)
-    if os.system("git -C %s pull" % _JHU_local_path) != 0:
-        if os.system("git clone %s %s" % (_JHU_web_path, _JHU_local_path)) != 0:
-            print("Unable to update JHU data", file=sys.stderr)
+    return_value_pull = os.system("git -C %s pull" % _JHU_local_path)
+    if return_value_pull != 0:
+        return_value_clone = os.system("git clone %s %s" % (_JHU_web_path, _JHU_local_path))
+        if return_value_clone != 0:
+            print("Unable to update JHU data (pull: %d, clone: %d)" % (return_value_pull, return_value_clone), file=sys.stderr)
             return 1
     return 0
 
 # update Google mobility data
 def _update_google():
     google_hidden_path = "../data/mobility/.Global_Mobility_Report.csv";
-    if os.system("curl -o %s -z %s %s" % (google_hidden_path, google_hidden_path, _google_web_path)) != 0:
-        print("Unable to update Google mobility data", file=sys.stderr)
+    return_value = os.system("curl -o %s -z %s %s" % (google_hidden_path, google_hidden_path, _google_web_path))
+    if return_value != 0:
+        print("Unable to update Google mobility data (%d)" % return_value, file=sys.stderr)
         return 1
-    os.system("cp %s %s" % (google_hidden_path, _google_local_path))
+    return_value_copy = os.system("cp %s %s" % (google_hidden_path, _google_local_path))
+    if return_value_copy != 0:
+        print("Unable to update Google mobility data (copy: %d)" % return_value_copy, file=sys.stderr)
+        return 1
     return 0
 
 # update Apple data
@@ -313,18 +321,26 @@ def _update_CTP():
     out = 0
     
     US_hidden_path = "../data/covid/CTP/.country.csv"
-    if os.system("curl -o %s -z %s %s" % (US_hidden_path, US_hidden_path, _CTP_US_web_path)) != 0:
-        print("Unable to update CTP US data")
+    return_value_us = os.system("curl -o %s -z %s %s" % (US_hidden_path, US_hidden_path, _CTP_US_web_path))
+    if return_value_us != 0:
+        print("Unable to update CTP US data (%d)" % return_value_us, file=sys.stderr)
         out += 1
     else:
-        os.system("cp %s %s" % (US_hidden_path, _CTP_US_local_path))
+        return_value_copy_us = os.system("cp %s %s" % (US_hidden_path, _CTP_US_local_path))
+        if return_value_copy_us != 0:
+            print("Unable to update CTP US data (copy: %d)" % return_value_copy_us, file=sys.stderr)
+            out += 1
     
     state_hidden_path = "../data/covid/CTP/.state.csv"
-    if os.system("curl -o %s -z %s %s" % (state_hidden_path, state_hidden_path, _CTP_state_web_path)) != 0:
-        print("Unable to update CTP state data")
+    return_value_state = os.system("curl -o %s -z %s %s" % (state_hidden_path, state_hidden_path, _CTP_state_web_path))
+    if return_value_state != 0:
+        print("Unable to update CTP state data (%d)" % return_value_us, file=sys.stderr)
         out += 1
     else:
-        os.system("cp %s %s" % (state_hidden_path, _CTP_state_local_path))
+        return_value_copy_state = os.system("cp %s %s" % (state_hidden_path, _CTP_state_local_path))
+        if return_value_copy_state != 0:
+            print("Unable to update CTP state data (copy: %d)" % return_value_copy, file=sys.stderr)
+            out += 1
     
     return out
 
