@@ -246,7 +246,7 @@ def _import_CTP_state():
     raw = raw.iloc[-1::-1]
     # remove deprecated and redundant columns
     stripped = raw.drop(labels=['state', 'checkTimeEt', 'commercialScore', 'dataQualityGrade', 'dateChecked', 'dateModified', 'deathIncrease', 'grade', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastUpdateEt', 'negativeIncrease', 'negativeRegularScore', 'negativeScore', 'posNeg', 'positiveIncrease', 'positiveScore', 'score', 'total', 'totalTestResultsIncrease'], axis=1)
-    return tuple(stripped.pivot(columns='fips', values=stat) for stat in stripped.columns if stat != 'fips')
+    return {stat: stripped.pivot(columns='fips', values=stat) for stat in stripped.columns if stat != 'fips'}
 
 
 
@@ -290,7 +290,6 @@ def _update_apple():
         date_last_mod = datetime.date.min
     for day in range(7):
         attempt_date = datetime.date.today() - datetime.timedelta(days=day)
-        print(attempt_date, date_last_mod, attempt_date <= date_last_mod)
         if attempt_date <= date_last_mod:
             os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
             os.system("touch %s" % apple_hidden_path)
