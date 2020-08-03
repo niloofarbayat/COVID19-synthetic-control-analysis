@@ -231,22 +231,27 @@ def _import_temperature_data():
     return out, fips
 
 def _import_CTP_US():
-    raw = pd.read_csv(_CTP_US_local_path)
-    raw = raw.set_index('date')
-    raw.index = pd.to_datetime(raw.index, format='%Y%m%d').strftime('%Y-%m-%d')
-    raw = raw.iloc[-1::-1]
+    data = pd.read_csv(_CTP_US_local_path)
+    data = data.set_index('date')
+    data.index = pd.to_datetime(data.index, format='%Y%m%d').strftime('%Y-%m-%d')
+    data = data.iloc[-1::-1]
     # remove deprecated and redundant columns
-    stripped = raw.drop(labels=['dateChecked', 'deathIncrease', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastModified', 'negativeIncrease', 'posNeg', 'positiveIncrease', 'total', 'totalTestResultsIncrease'], axis=1)
+    stripped = data.drop(labels=['dateChecked', 'deathIncrease', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastModified', 'negativeIncrease', 'posNeg', 'positiveIncrease', 'total', 'totalTestResultsIncrease'], axis=1)
     return stripped
 
 def _import_CTP_state():
-    raw = pd.read_csv(_CTP_state_local_path)
-    raw = raw.set_index('date')
-    raw.index = pd.to_datetime(raw.index, format='%Y%m%d').strftime('%Y-%m-%d')
-    raw = raw.iloc[-1::-1]
+    data = pd.read_csv(_CTP_state_local_path)
+    data = data.set_index('date')
+    data.index = pd.to_datetime(data.index, format='%Y%m%d').strftime('%Y-%m-%d')
+    data = data.iloc[-1::-1]
     # remove deprecated and redundant columns
-    stripped = raw.drop(labels=['state', 'checkTimeEt', 'commercialScore', 'dataQualityGrade', 'dateChecked', 'dateModified', 'deathIncrease', 'grade', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastUpdateEt', 'negativeIncrease', 'negativeRegularScore', 'negativeScore', 'posNeg', 'positiveIncrease', 'positiveScore', 'score', 'total', 'totalTestResultsIncrease'], axis=1)
-    return {stat: stripped.pivot(columns='fips', values=stat) for stat in stripped.columns if stat != 'fips'}
+    stripped = data.drop(labels=['state', 'checkTimeEt', 'commercialScore', 'dataQualityGrade', 'dateChecked', 'dateModified', 'deathIncrease', 'grade', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastUpdateEt', 'negativeIncrease', 'negativeRegularScore', 'negativeScore', 'posNeg', 'positiveIncrease', 'positiveScore', 'score', 'total', 'totalTestResultsIncrease'], axis=1)
+    stats_dict = {stat: stripped.pivot(columns='fips', values=stat) for stat in stripped.columns if stat != 'fips'}
+    # convert fips codes into state names
+    fips = pd.read_csv(_JHU_local_path + "csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv").set_index('FIPS')
+    for _, df in stats_dict.items():
+        df.columns = [fips.loc[fips_code]['Province_State'] for fips_code in df.columns]
+    return stats_dict
 
 
 
@@ -339,7 +344,7 @@ def _update_CTP():
     else:
         return_value_copy_state = os.system("cp %s %s" % (state_hidden_path, _CTP_state_local_path))
         if return_value_copy_state != 0:
-            print("Unable to update CTP state data (copy: %d)" % return_value_copy, file=sys.stderr)
+            print("Unable to update CTP state data (copy: %d)" % return_value_copy_state, file=sys.stderr)
             out += 1
     
     return out
