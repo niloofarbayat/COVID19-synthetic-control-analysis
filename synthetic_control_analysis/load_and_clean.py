@@ -6,7 +6,10 @@ import datetime
 
 
 
-
+if sys.platform == 'win32':
+    powershell_path = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe "
+else:
+    powershell_path == ""
 # note that some of these paths are directories, and some are files
 _NYTimes_web_path = "https://github.com/nytimes/covid-19-data.git"
 _NYTimes_local_path = "../data/covid/NYTimes/"
@@ -85,8 +88,8 @@ def _import_JHU_global():
     deaths_after_Jan22 = deaths.loc[:, '1/22/20':].T
 
     for country in country_deaths.columns:
-	    if country not in deaths_after_Jan22.columns:
-	        deaths_after_Jan22[country] = country_deaths[country]
+        if country not in deaths_after_Jan22.columns:
+            deaths_after_Jan22[country] = country_deaths[country]
 
     cases['Province-Country'] = cases['Country/Region']+'-'+cases['Province/State'].fillna("None")
     cases['Province-Country'] = cases['Province-Country'].str.replace("-None", "")
@@ -95,8 +98,8 @@ def _import_JHU_global():
     cases_after_Jan22 = cases.loc[:, '1/22/20':].T
 
     for country in country_cases.columns:
-	    if country not in cases_after_Jan22.columns:
-	        cases_after_Jan22[country] = country_cases[country]
+        if country not in cases_after_Jan22.columns:
+            cases_after_Jan22[country] = country_cases[country]
 
     cases_after_Jan22.index = pd.to_datetime(cases_after_Jan22.index, format='%m/%d/%y').strftime('%Y-%m-%d')
     deaths_after_Jan22.index = pd.to_datetime(deaths_after_Jan22.index, format='%m/%d/%y').strftime('%Y-%m-%d')
@@ -288,7 +291,7 @@ def _update_google():
     if return_value != 0:
         print("Unable to update Google mobility data (%d)" % return_value, file=sys.stderr)
         return 1
-    return_value_copy = os.system("cp %s %s" % (google_hidden_path, _google_local_path))
+    return_value_copy = os.system(powershell_path + "cp %s %s" % (google_hidden_path, _google_local_path))
     if return_value_copy != 0:
         print("Unable to update Google mobility data (copy: %d)" % return_value_copy, file=sys.stderr)
         return 1
@@ -304,15 +307,15 @@ def _update_apple():
     for day in range(7):
         attempt_date = datetime.date.today() - datetime.timedelta(days=day)
         if attempt_date <= date_last_mod:
-            os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
-            os.system("touch %s" % apple_hidden_path)
+            os.system(powershell_path + "cp %s %s" % (apple_hidden_path, _apple_local_path))
+            os.system(powershell_path + "touch %s" % apple_hidden_path)
             return 0
         # attempt to find url:
         for i in range(13, 13+10):
             for dev in range(20):
                 if os.system("curl -f -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path % (i, dev, attempt_date.strftime('%Y-%m-%d')))) == 0:
-                    os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
-                    os.system("touch %s" % apple_hidden_path)
+                    os.system(powershell_path + "cp %s %s" % (apple_hidden_path, _apple_local_path))
+                    os.system(powershell_path + "touch %s" % apple_hidden_path)
                     return 0
     print("Unable to update Apple mobility data", file=sys.stderr)
     return 1
@@ -326,12 +329,13 @@ def _update_CTP():
     out = 0
     
     US_hidden_path = "../data/covid/CTP/.country.csv"
+
     return_value_us = os.system("curl -o %s -z %s %s" % (US_hidden_path, US_hidden_path, _CTP_US_web_path))
     if return_value_us != 0:
         print("Unable to update CTP US data (%d)" % return_value_us, file=sys.stderr)
         out += 1
     else:
-        return_value_copy_us = os.system("cp %s %s" % (US_hidden_path, _CTP_US_local_path))
+        return_value_copy_us = os.system(powershell_path + "cp %s %s" % (US_hidden_path, _CTP_US_local_path))
         if return_value_copy_us != 0:
             print("Unable to update CTP US data (copy: %d)" % return_value_copy_us, file=sys.stderr)
             out += 1
@@ -342,7 +346,8 @@ def _update_CTP():
         print("Unable to update CTP state data (%d)" % return_value_us, file=sys.stderr)
         out += 1
     else:
-        return_value_copy_state = os.system("cp %s %s" % (state_hidden_path, _CTP_state_local_path))
+
+        return_value_copy_state = os.system(powershell_path + "cp %s %s" % (state_hidden_path, _CTP_state_local_path))
         if return_value_copy_state != 0:
             print("Unable to update CTP state data (copy: %d)" % return_value_copy_state, file=sys.stderr)
             out += 1
