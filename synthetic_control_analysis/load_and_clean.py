@@ -9,7 +9,7 @@ import datetime
 if sys.platform == 'win32':
     powershell_path = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe "
 else:
-    powershell_path == ""
+    powershell_path = ""
 # note that some of these paths are directories, and some are files
 _NYTimes_web_path = "https://github.com/nytimes/covid-19-data.git"
 _NYTimes_local_path = "../data/covid/NYTimes/"
