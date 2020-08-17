@@ -13,6 +13,7 @@ else:
 # note that some of these paths are directories, and some are files
 _NYTimes_web_path = "https://github.com/nytimes/covid-19-data.git"
 _NYTimes_local_path = "../data/covid/NYTimes/"
+_NYTimes_mask_data = "../data/covid/NYTimes/mask-use/mask-use-by-county.csv"
 
 _JHU_web_path = "https://github.com/CSSEGISandData/COVID-19.git"
 _JHU_local_path = "../data/covid/JHU/"
@@ -69,6 +70,15 @@ def _import_NYTimes_counties():
     deaths = deaths.fillna(0)
 
     return cases, deaths, counties
+
+def _import_NYTimes_masks():
+    fips = pd.DataFrame.drop_duplicates(pd.read_csv(_NYTimes_local_path + 'us-counties.csv')[['fips', 'county', 'state']])
+    fips['county_state'] = fips['county'] + '-' + fips['state']
+    fips = fips[['fips', 'county_state']]
+    mask = pd.read_csv(_NYTimes_mask_data)
+    mask = mask.rename({'COUNTYFP': 'fips'}, axis = 'columns')
+    mask = pd.merge(fips, mask, how = 'inner', on = 'fips')[["county_state", "NEVER", "RARELY", "SOMETIMES", "FREQUENTLY", "ALWAYS"]]
+    return mask
 
 
 # load and clean JHU data
@@ -330,6 +340,7 @@ def _update_CTP():
     
     US_hidden_path = "../data/covid/CTP/.country.csv"
 
+
     return_value_us = os.system("curl -o %s -z %s %s" % (US_hidden_path, US_hidden_path, _CTP_US_web_path))
     if return_value_us != 0:
         print("Unable to update CTP US data (%d)" % return_value_us, file=sys.stderr)
@@ -370,6 +381,7 @@ def load_clean(dataset):
     _import_function_dictionary = {'NYTimes US' : _import_NYTimes_US,
                         'NYTimes states' : _import_NYTimes_states,
                         'NYTimes counties' : _import_NYTimes_counties,
+                        'NYTimes mask': _import_NYTimes_masks,
                         'JHU global' : _import_JHU_global,
                         'JHU US' : _import_JHU_US,
                         'mobility' : _import_mobility,
