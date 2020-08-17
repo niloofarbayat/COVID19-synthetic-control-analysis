@@ -33,10 +33,10 @@ _county_pop_local_path = "../data/population/co-est2019-annres.xlsx"
 _state_reopen_local_path = "../data/intervention/state_reopen_data.csv"
 _temperature_local_path = "../data/temperature/temp_data.csv"
 
-_CTP_US_web_path = "https://covidtracking.com/api/v1/us/daily.csv"
+_CTP_US_web_path = "https://api.covidtracking.com/v1/us/daily.csv"
 _CTP_US_local_path = "../data/covid/CTP/country.csv"
 
-_CTP_state_web_path = "https://covidtracking.com/api/v1/states/daily.csv"
+_CTP_state_web_path = "https://api.covidtracking.com/v1/states/daily.csv"
 _CTP_state_local_path = "../data/covid/CTP/state.csv"
 
 
