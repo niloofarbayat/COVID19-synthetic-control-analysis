@@ -6,10 +6,14 @@ import datetime
 
 
 
-
+if sys.platform == 'win32':
+    powershell_path = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe "
+else:
+    powershell_path = ""
 # note that some of these paths are directories, and some are files
 _NYTimes_web_path = "https://github.com/nytimes/covid-19-data.git"
 _NYTimes_local_path = "../data/covid/NYTimes/"
+_NYTimes_mask_data = "../data/covid/NYTimes/mask-use/mask-use-by-county.csv"
 
 _JHU_web_path = "https://github.com/CSSEGISandData/COVID-19.git"
 _JHU_local_path = "../data/covid/JHU/"
@@ -17,7 +21,7 @@ _JHU_local_path = "../data/covid/JHU/"
 _google_web_path = "https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv"
 _google_local_path = "../data/mobility/Global_Mobility_Report.csv"
 
-_apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/2013HotfixDev7/v3/en-us/applemobilitytrends-%s.csv"
+_apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/20%dHotfixDev%d/v3/en-us/applemobilitytrends-%s.csv"
 _apple_local_path = "../data/mobility/applemobilitytrends.csv"
 
 _IHME_web_path = None #TODO unimplemented, line 177
@@ -67,6 +71,15 @@ def _import_NYTimes_counties():
 
     return cases, deaths, counties
 
+def _import_NYTimes_masks():
+    fips = pd.DataFrame.drop_duplicates(pd.read_csv(_NYTimes_local_path + 'us-counties.csv')[['fips', 'county', 'state']])
+    fips['county_state'] = fips['county'] + '-' + fips['state']
+    fips = fips[['fips', 'county_state']]
+    mask = pd.read_csv(_NYTimes_mask_data)
+    mask = mask.rename({'COUNTYFP': 'fips'}, axis = 'columns')
+    mask = pd.merge(fips, mask, how = 'inner', on = 'fips')[["county_state", "NEVER", "RARELY", "SOMETIMES", "FREQUENTLY", "ALWAYS"]]
+    return mask
+
 
 # load and clean JHU data
 def _import_JHU_global():
@@ -85,8 +98,8 @@ def _import_JHU_global():
     deaths_after_Jan22 = deaths.loc[:, '1/22/20':].T
 
     for country in country_deaths.columns:
-	    if country not in deaths_after_Jan22.columns:
-	        deaths_after_Jan22[country] = country_deaths[country]
+        if country not in deaths_after_Jan22.columns:
+            deaths_after_Jan22[country] = country_deaths[country]
 
     cases['Province-Country'] = cases['Country/Region']+'-'+cases['Province/State'].fillna("None")
     cases['Province-Country'] = cases['Province-Country'].str.replace("-None", "")
@@ -95,8 +108,8 @@ def _import_JHU_global():
     cases_after_Jan22 = cases.loc[:, '1/22/20':].T
 
     for country in country_cases.columns:
-	    if country not in cases_after_Jan22.columns:
-	        cases_after_Jan22[country] = country_cases[country]
+        if country not in cases_after_Jan22.columns:
+            cases_after_Jan22[country] = country_cases[country]
 
     cases_after_Jan22.index = pd.to_datetime(cases_after_Jan22.index, format='%m/%d/%y').strftime('%Y-%m-%d')
     deaths_after_Jan22.index = pd.to_datetime(deaths_after_Jan22.index, format='%m/%d/%y').strftime('%Y-%m-%d')
@@ -231,22 +244,27 @@ def _import_temperature_data():
     return out, fips
 
 def _import_CTP_US():
-    raw = pd.read_csv(_CTP_US_local_path)
-    raw = raw.set_index('date')
-    raw.index = pd.to_datetime(raw.index, format='%Y%m%d').strftime('%Y-%m-%d')
-    raw = raw.iloc[-1::-1]
+    data = pd.read_csv(_CTP_US_local_path)
+    data = data.set_index('date')
+    data.index = pd.to_datetime(data.index, format='%Y%m%d').strftime('%Y-%m-%d')
+    data = data.iloc[-1::-1]
     # remove deprecated and redundant columns
-    stripped = raw.drop(labels=['dateChecked', 'deathIncrease', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastModified', 'negativeIncrease', 'posNeg', 'positiveIncrease', 'total', 'totalTestResultsIncrease'], axis=1)
+    stripped = data.drop(labels=['dateChecked', 'deathIncrease', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastModified', 'negativeIncrease', 'posNeg', 'positiveIncrease', 'total', 'totalTestResultsIncrease'], axis=1)
     return stripped
 
 def _import_CTP_state():
-    raw = pd.read_csv(_CTP_state_local_path)
-    raw = raw.set_index('date')
-    raw.index = pd.to_datetime(raw.index, format='%Y%m%d').strftime('%Y-%m-%d')
-    raw = raw.iloc[-1::-1]
+    data = pd.read_csv(_CTP_state_local_path)
+    data = data.set_index('date')
+    data.index = pd.to_datetime(data.index, format='%Y%m%d').strftime('%Y-%m-%d')
+    data = data.iloc[-1::-1]
     # remove deprecated and redundant columns
-    stripped = raw.drop(labels=['state', 'checkTimeEt', 'commercialScore', 'dataQualityGrade', 'dateChecked', 'dateModified', 'deathIncrease', 'grade', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastUpdateEt', 'negativeIncrease', 'negativeRegularScore', 'negativeScore', 'posNeg', 'positiveIncrease', 'positiveScore', 'score', 'total', 'totalTestResultsIncrease'], axis=1)
-    return tuple(stripped.pivot(columns='fips', values=stat) for stat in stripped.columns if stat != 'fips')
+    stripped = data.drop(labels=['state', 'checkTimeEt', 'commercialScore', 'dataQualityGrade', 'dateChecked', 'dateModified', 'deathIncrease', 'grade', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastUpdateEt', 'negativeIncrease', 'negativeRegularScore', 'negativeScore', 'posNeg', 'positiveIncrease', 'positiveScore', 'score', 'total', 'totalTestResultsIncrease'], axis=1)
+    stats_dict = {stat: stripped.pivot(columns='fips', values=stat) for stat in stripped.columns if stat != 'fips'}
+    # convert fips codes into state names
+    fips = pd.read_csv(_JHU_local_path + "csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv").set_index('FIPS')
+    for _, df in stats_dict.items():
+        df.columns = [fips.loc[fips_code]['Province_State'] for fips_code in df.columns]
+    return stats_dict
 
 
 
@@ -257,38 +275,58 @@ def _import_CTP_state():
 # update New York Times data
 def _update_NYTimes():
     os.system("git -C %s reset --hard" % _NYTimes_local_path)
-    if os.system("git -C %s pull" % _NYTimes_local_path) != 0:
-        if os.system("git clone %s %s" % (_NYTimes_web_path, _NYTimes_local_path)) != 0:
-            print("Unable to update NYTimes data", file=sys.stderr)
+    return_value_pull = os.system("git -C %s pull" % _NYTimes_local_path)
+    if return_value_pull != 0:
+        return_value_clone = os.system("git clone %s %s" % (_NYTimes_web_path, _NYTimes_local_path))
+        if return_value_clone != 0:
+            print("Unable to update NYTimes data (pull: %d, clone: %d)" % (return_value_pull, return_value_clone), file=sys.stderr)
             return 1
     return 0
 
 # update JHU data
 def _update_JHU():
     os.system("git -C %s reset --hard" % _NYTimes_local_path)
-    if os.system("git -C %s pull" % _JHU_local_path) != 0:
-        if os.system("git clone %s %s" % (_JHU_web_path, _JHU_local_path)) != 0:
-            print("Unable to update JHU data", file=sys.stderr)
+    return_value_pull = os.system("git -C %s pull" % _JHU_local_path)
+    if return_value_pull != 0:
+        return_value_clone = os.system("git clone %s %s" % (_JHU_web_path, _JHU_local_path))
+        if return_value_clone != 0:
+            print("Unable to update JHU data (pull: %d, clone: %d)" % (return_value_pull, return_value_clone), file=sys.stderr)
             return 1
     return 0
 
 # update Google mobility data
 def _update_google():
     google_hidden_path = "../data/mobility/.Global_Mobility_Report.csv";
-    if os.system("curl -o %s -z %s %s" % (google_hidden_path, google_hidden_path, _google_web_path)) != 0:
-        print("Unable to update Google mobility data", file=sys.stderr)
+    return_value = os.system("curl -o %s -z %s %s" % (google_hidden_path, google_hidden_path, _google_web_path))
+    if return_value != 0:
+        print("Unable to update Google mobility data (%d)" % return_value, file=sys.stderr)
         return 1
-    os.system("cp %s %s" % (google_hidden_path, _google_local_path))
+    return_value_copy = os.system(powershell_path + "cp %s %s" % (google_hidden_path, _google_local_path))
+    if return_value_copy != 0:
+        print("Unable to update Google mobility data (copy: %d)" % return_value_copy, file=sys.stderr)
+        return 1
     return 0
 
 # update Apple data
 def _update_apple():
     apple_hidden_path = "../data/mobility/.applemobilitytrends.csv";
+    try:
+        date_last_mod = datetime.date.fromtimestamp(os.path.getmtime(apple_hidden_path))
+    except:
+        date_last_mod = datetime.date.min
     for day in range(7):
-        attempt_date = (datetime.date.today() - datetime.timedelta(days=day)).strftime('%Y-%m-%d')
-        if os.system("curl -f -o %s %s" % (apple_hidden_path, _apple_web_path % attempt_date)) == 0:
-            os.system("cp %s %s" % (apple_hidden_path, _apple_local_path))
+        attempt_date = datetime.date.today() - datetime.timedelta(days=day)
+        if attempt_date <= date_last_mod:
+            os.system(powershell_path + "cp %s %s" % (apple_hidden_path, _apple_local_path))
+            os.system(powershell_path + "touch %s" % apple_hidden_path)
             return 0
+        # attempt to find url:
+        for i in range(13, 13+10):
+            for dev in range(20):
+                if os.system("curl -f -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path % (i, dev, attempt_date.strftime('%Y-%m-%d')))) == 0:
+                    os.system(powershell_path + "cp %s %s" % (apple_hidden_path, _apple_local_path))
+                    os.system(powershell_path + "touch %s" % apple_hidden_path)
+                    return 0
     print("Unable to update Apple mobility data", file=sys.stderr)
     return 1
 
@@ -301,18 +339,29 @@ def _update_CTP():
     out = 0
     
     US_hidden_path = "../data/covid/CTP/.country.csv"
-    if os.system("curl -o %s -z %s %s" % (US_hidden_path, US_hidden_path, _CTP_US_web_path)) != 0:
-        print("Unable to update CTP US data")
+
+
+    return_value_us = os.system("curl -o %s -z %s %s" % (US_hidden_path, US_hidden_path, _CTP_US_web_path))
+    if return_value_us != 0:
+        print("Unable to update CTP US data (%d)" % return_value_us, file=sys.stderr)
         out += 1
     else:
-        os.system("cp %s %s" % (US_hidden_path, _CTP_US_local_path))
+        return_value_copy_us = os.system(powershell_path + "cp %s %s" % (US_hidden_path, _CTP_US_local_path))
+        if return_value_copy_us != 0:
+            print("Unable to update CTP US data (copy: %d)" % return_value_copy_us, file=sys.stderr)
+            out += 1
     
     state_hidden_path = "../data/covid/CTP/.state.csv"
-    if os.system("curl -o %s -z %s %s" % (state_hidden_path, state_hidden_path, _CTP_state_web_path)) != 0:
-        print("Unable to update CTP state data")
+    return_value_state = os.system("curl -o %s -z %s %s" % (state_hidden_path, state_hidden_path, _CTP_state_web_path))
+    if return_value_state != 0:
+        print("Unable to update CTP state data (%d)" % return_value_us, file=sys.stderr)
         out += 1
     else:
-        os.system("cp %s %s" % (state_hidden_path, _CTP_state_local_path))
+
+        return_value_copy_state = os.system(powershell_path + "cp %s %s" % (state_hidden_path, _CTP_state_local_path))
+        if return_value_copy_state != 0:
+            print("Unable to update CTP state data (copy: %d)" % return_value_copy_state, file=sys.stderr)
+            out += 1
     
     return out
 
@@ -332,6 +381,7 @@ def load_clean(dataset):
     _import_function_dictionary = {'NYTimes US' : _import_NYTimes_US,
                         'NYTimes states' : _import_NYTimes_states,
                         'NYTimes counties' : _import_NYTimes_counties,
+                        'NYTimes mask': _import_NYTimes_masks,
                         'JHU global' : _import_JHU_global,
                         'JHU US' : _import_JHU_US,
                         'mobility' : _import_mobility,

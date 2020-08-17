@@ -71,8 +71,8 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
 
 #Functions to create intervention adjusted data based on the social distancing metrics.
 
-def create_intervention_adjusted_data(df, intervention, rolling_average_duration): 
-    intervention_adjusted, intervention_dates = filter_data_by_intervention(df, intervention)
+def create_intervention_adjusted_data(df, intervention, rolling_average_duration, ignore_nan=False): 
+    intervention_adjusted, intervention_dates = filter_data_by_intervention(df, intervention, ignore_nan=ignore_nan)
     intervention_adjusted_daily = create_rolling_data(intervention_adjusted, rolling_average_duration)
     #intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
     return intervention_adjusted, intervention_adjusted_daily, intervention_dates
@@ -80,7 +80,7 @@ def create_intervention_adjusted_data(df, intervention, rolling_average_duration
 
 # function to create filtered dataframe based on intervention dates and align timeseries
 
-def filter_data_by_intervention(df, intervention, lag=0):
+def filter_data_by_intervention(df, intervention, lag=0, ignore_nan=False):
     newdf = pd.DataFrame()
     if (lag > 0):
         subscript=" -"+str(lag)
@@ -93,7 +93,7 @@ def filter_data_by_intervention(df, intervention, lag=0):
         intervention_date = intervention[intervention.name == state].date.values
         if(intervention_date.size>0):
             newdata = df.loc[pd.to_datetime(df.index)>=pd.to_datetime(intervention_date[0])][state].values
-            if(np.isnan(newdata[:5]).any()):
+            if(not ignore_nan and np.isnan(newdata[:5]).any()):
                 print(state)
                 continue
             newdf = pd.concat([newdf, pd.DataFrame(columns=[state+subscript],
@@ -226,13 +226,9 @@ def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2,
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
-                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None):
+                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, check_nan=0):
     
-    
-    #print('yo', list_of_dfs,'bo')
-    #print(len(list_of_dfs))
     df = list_of_dfs[0]
-    
     
     if (donorPool):
         otherStates=donorPool.copy()
@@ -269,6 +265,15 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
     else:
         prediction_states = list(sizes[(sizes>low_thresh) & (sizes<=threshold)].index)
     
+    if check_nan:
+        start = max(df[state].first_valid_index() for state in prediction_states)
+        if low_thresh - start > check_nan:
+            start = low_thresh - check_nan
+        df = df.iloc[start:].reset_index(drop=True)
+        list_of_dfs = [df.iloc[start:].reset_index(drop=True) for df in list_of_dfs]
+        low_thresh -= start
+        otherStates = [state for state in otherStates if df[state].first_valid_index() == 0]
+        print('final donorpool: ', otherStates)
     
     for state in prediction_states:
         all_rows = list.copy(otherStates)
@@ -317,7 +322,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         #     plt.figure(figsize=(16,6))
         ind = np.argpartition(rscModel.model.weights, -showstates)[-showstates:]
         topstates = [otherStates[i] for i in ind]
-        if showDonors:      
+        if showDonors:
             axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
             axes[0].set_title("Normalized weights for "+str(state).replace("-None",""), fontsize=FONTSIZE)
         ax = axes[-1] if showDonors else axes
@@ -333,19 +338,14 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
 
             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
             ax.grid()
-            if showDonors:
+            ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
+            if title_text:
                 ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
-            else:
-                ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
-                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+            ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
+            ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+            ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
-                plt.savefig("../Figures/COVID/"+state+".png")        
+                plt.savefig("../Figures/COVID/"+state+'.pdf',bbox_inches='tight')    
             if(animation):
                 animation.snap()
 
