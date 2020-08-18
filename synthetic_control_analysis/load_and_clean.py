@@ -285,7 +285,7 @@ def _update_NYTimes():
 
 # update JHU data
 def _update_JHU():
-    os.system("git -C %s reset --hard" % _NYTimes_local_path)
+    os.system("git -C %s reset --hard" % _JHU_local_path)
     return_value_pull = os.system("git -C %s pull" % _JHU_local_path)
     if return_value_pull != 0:
         return_value_clone = os.system("git clone %s %s" % (_JHU_web_path, _JHU_local_path))
@@ -369,6 +369,29 @@ def _update_CTP():
 
 
 
+def _construct_file_hierarchy():
+    def _create_dir(path):
+        if not os.path.exists(path):
+            os.mkdir(path)
+    _create_dir("../data")
+    
+    _create_dir("../data/covid")
+    _create_dir("../data/intervention")
+    _create_dir("../data/mobility")
+    _create_dir("../data/population")
+    _create_dir("../data/temperature")
+    
+    _create_dir("../data/covid/CTP")
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -407,6 +430,8 @@ def update_data(dataset=None):
                                 'CTP' : _update_CTP
     }
 
+    _construct_file_hierarchy()
+    
     if dataset:
         return _update_function_dictionary[dataset]()
 
