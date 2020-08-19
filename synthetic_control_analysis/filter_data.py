@@ -325,6 +325,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         if showDonors:
             axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
             axes[0].set_title("Normalized weights for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+            axes[0].tick_params(axis='both', which='major', labelsize=FONTSIZE)
         ax = axes[-1] if showDonors else axes
         if(ylimit):
             ax.set_ylim(ylimit)
