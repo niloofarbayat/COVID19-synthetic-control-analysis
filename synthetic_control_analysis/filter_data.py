@@ -8,7 +8,7 @@ import hdbscan
 from sklearn.cluster import KMeans, AgglomerativeClustering, AffinityPropagation, DBSCAN #For clustering
 from sklearn.mixture import GaussianMixture #For GMM clustering
 import matplotlib.ticker as ticker
-
+from tslearn.clustering import TimeSeriesKMeans
 
 
 
@@ -163,7 +163,10 @@ def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', n_clusters
         features['cluster']= clusterer.labels_
         feature_dict = features.groupby('cluster').groups
     if cluster_method == 'kmeans':
-        kmeans = KMeans(n_clusters=n_clusters)
+        #kmeans = KMeans(n_clusters=n_clusters)
+        kmeans = TimeSeriesKMeans(n_clusters=n_clusters, metric="dtw", max_iter=5,
+                          max_iter_barycenter=5,
+                          random_state=0)
         y = kmeans.fit_predict(features)
         features['cluster']= y
         feature_dict = features.groupby('cluster').groups
