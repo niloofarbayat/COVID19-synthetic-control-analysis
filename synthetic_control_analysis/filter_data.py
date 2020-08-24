@@ -120,6 +120,10 @@ def get_social_distancing(df, intervention_tried):
 def mse(y1, y2):
     return np.sum((y1 - y2) ** 2) / len(y1)/np.sqrt(np.square(y1).sum())
 
+def find_testing_diversion(y1, y2):
+    return np.sum((y1-y2)/y2)
+
+
 def compute_singular_values(df):
     (U, s, Vh) = np.linalg.svd((df) - np.mean(df))
     s2 = np.power(s, 2)
@@ -155,7 +159,7 @@ def plot_cluster(feature_dict, list_of_dfs, x_labels = [], y_labels = []):
         i += 1
     plt.show()
 
-def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', n_clusters = 4, min_cluster_size = 2, min_sample = 1):
+def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', metric = 'euclidean', n_clusters = 4, min_cluster_size = 2, min_sample = 1):
     features = time_series_data.T
     if cluster_method == 'HDBSCAN':
         clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples = min_sample)
@@ -163,8 +167,9 @@ def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', n_clusters
         features['cluster']= clusterer.labels_
         feature_dict = features.groupby('cluster').groups
     if cluster_method == 'kmeans':
+
         #kmeans = KMeans(n_clusters=n_clusters)
-        kmeans = TimeSeriesKMeans(n_clusters=n_clusters, metric="dtw", max_iter=5,
+        kmeans = TimeSeriesKMeans(n_clusters=n_clusters, metric=metric, max_iter=5,
                           max_iter_barycenter=5,
                           random_state=0)
         y = kmeans.fit_predict(features)
@@ -374,6 +379,20 @@ def create_peak_clusters(df, threshold=5):
     #plt.scatter(global_peak_size['days to peak'], (global_peak_size['peak value']), s=2*global_peak_size['initial value']), 
     return global_peak_size
 
+
+
+def find_close(df, date_check, infection_level, infection_threshold, county = True, exclude_state = []):
+    date_check = '2020-07-04'
+    counties_close = []
+    for region in df:
+        names = [region]
+        if county:
+            names = region.split('-')
+        if names[0] != 'Unknown' and (names[-1] not in exclude_state) and \
+            (infection_level - infection_threshold <= df[region][date_check] <= infection_level + infection_threshold):
+
+            counties_close.append(region)
+    return counties_close
 
 # account for the weekends in mobility data
 def is_weekend (date):   
