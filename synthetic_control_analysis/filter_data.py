@@ -9,6 +9,10 @@ from sklearn.cluster import KMeans, AgglomerativeClustering, AffinityPropagation
 from sklearn.mixture import GaussianMixture #For GMM clustering
 import matplotlib.ticker as ticker
 from tslearn.clustering import TimeSeriesKMeans
+import random
+import matplotlib.colors as mcolors
+
+
 
 
 
@@ -132,6 +136,16 @@ def compute_singular_values(df):
     (U, s, Vh) = np.linalg.svd((df) - np.mean(df))
     s2 = np.power(s, 2)
     return pd.Series(s2)
+
+def get_colors(num, picker = 11):
+    
+    all_c = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgb(color))),name) for name, color in mcolors.CSS4_COLORS.items())
+    selected_c = []
+    for c in all_c:
+        if (np.array(c[0]) > np.array([0.2, 0.2, 0.2])).all():
+            selected_c.append(c[1])
+    m = len(selected_c)//num
+    return selected_c[picker%m:picker%(len(selected_c) - num * m) + m*num:m]
 
 # function to build and plot synthetic control baswed projections. The first threshold is which regions to use in the donor pool 
 # - the ones that have had the timeseries for threshold days and above. The low_thresh is to do predictions for regions that
