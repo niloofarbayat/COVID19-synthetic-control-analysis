@@ -121,7 +121,11 @@ def mse(y1, y2):
     return np.sum((y1 - y2) ** 2) / len(y1)/np.sqrt(np.square(y1).sum())
 
 def find_testing_diversion(y1, y2):
-    return np.sum((y1-y2)/y2)
+    # return np.sum((y1-y2)/y2)
+    y2_copy = y2.copy()
+    y2 = y2[y2_copy > 0]
+    y1 = y1[y2_copy > 0] 
+    return np.sum((y1-y2)/y2)/len(y2)
 
 
 def compute_singular_values(df):
@@ -382,7 +386,6 @@ def create_peak_clusters(df, threshold=5):
 
 
 def find_close(df, date_check, infection_level, infection_threshold, county = True, exclude_state = []):
-    date_check = '2020-07-04'
     counties_close = []
     for region in df:
         names = [region]
