@@ -199,7 +199,7 @@ def _import_population_data():
 
 
     country_population = pd.read_excel(_country_pop_local_path)
-    county_population = pd.read_excel(_county_pop_local_path, header=[3])
+    county_population = pd.read_excel(_county_pop_local_path, header=[3], skipfooter=6)
     new = county_population['Unnamed: 0'].str.strip(".").str.replace(" County","").str.split(pat=",", expand=True)
 
     county_population['county'] = new[0] +'-' + new[1].str.strip()
