@@ -126,10 +126,12 @@ def mse(y1, y2):
 
 def find_testing_diversion(y1, y2):
     # return np.sum((y1-y2)/y2)
-    y2_copy = y2.copy()
-    y2 = y2[y2_copy > 0]
-    y1 = y1[y2_copy > 0] 
-    return np.sum((y1-y2)/y2)/len(y2)
+    # y2_copy = y2.copy()
+    # y2 = y2[y2_copy != 0]
+    # y1 = y1[y2_copy != 0] 
+    # return np.sum((y1-y2)/np.abs(y2))
+
+    return np.sum(y1-y2)/np.sum(y2)
 
 
 def compute_singular_values(df):
@@ -324,8 +326,10 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         denoisedDF = rscModel.model.denoisedDF()
         predictions = []
     
-        predictions = np.dot(testDF[otherStates].values, rscModel.model.weights)
-        predictions_noisy = np.dot(testDF[otherStates].values, rscModel.model.weights)
+        predictions = np.dot(testDF[otherStates].fillna(0).values, rscModel.model.weights)
+        predictions_noisy = np.dot(testDF[otherStates].fillna(0).values, rscModel.model.weights)
+
+        predictions[predictions < 0 ] = 0
         x_actual= df[state].index #range(sizes[state])
         actual = df[state] #df.iloc[:sizes[state],:][state]
         
@@ -340,7 +344,9 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             plt.title("Singular Value Spectrum", fontsize=FONTSIZE)
             plt.show()
         x_predictions=df.index[low_thresh:low_thresh+len(predictions)] #range(low_thresh,low_thresh+len(predictions))
-        model_fit = np.dot(trainDF[otherStates][:], rscModel.model.weights)
+        model_fit = np.dot(trainDF[otherStates][:].fillna(0), rscModel.model.weights)
+
+        model_fit[model_fit < 0] = 0
         error = mse(actual[:low_thresh], model_fit)
         if not silent:
             print(state, error)
@@ -360,7 +366,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         if(showPlots):
             ax.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
             ax.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
-            ax.plot(df.index[:low_thresh], model_fit, label = 'Fitted model', color='g', linestyle=':')
+            #ax.plot(df.index[:low_thresh], model_fit, label = 'Fitted model', color='g', linestyle=':')
             ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
 
             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
