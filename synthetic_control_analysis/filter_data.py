@@ -131,7 +131,7 @@ def find_testing_diversion(y1, y2):
     # y1 = y1[y2_copy != 0] 
     # return np.sum((y1-y2)/np.abs(y2))
 
-    return np.sum(y1-y2)/np.sum(y2)
+    return np.sum(abs(y1-y2))/np.sum(y2)
 
 
 def compute_singular_values(df):
