@@ -318,6 +318,7 @@ def _update_apple():
     except:
         date_last_mod = datetime.date.min
 
+    err = False    
     for day in range(7):
         attempt_date = datetime.date.today() - datetime.timedelta(days=day)
         if attempt_date < date_last_mod:
@@ -328,7 +329,16 @@ def _update_apple():
         processes = []
         for i in range(14, 14+10):
             for dev in range(20):
-                processes.append(Popen("curl -s -f -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path % (i, dev, attempt_date.strftime('%Y-%m-%d'))), shell=True))
+                try:
+                    processes.append(Popen("curl -s -f -o %s -z %s %s" % (apple_hidden_path, apple_hidden_path, _apple_web_path % (i, dev, attempt_date.strftime('%Y-%m-%d'))), shell=True))
+                except OSError:
+                    err = True
+        if err:
+            print("Unable to update Apple mobility data (OSError)", file=sys.stderr)
+            for p in processes:
+                p.kill()
+            break
+
         if not all(p.wait() for p in processes):
             os.system(powershell_path + "cp %s %s" % (apple_hidden_path, _apple_local_path))
             os.system(powershell_path + "touch %s" % apple_hidden_path)
