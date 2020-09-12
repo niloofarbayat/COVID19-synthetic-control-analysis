@@ -1,3 +1,4 @@
+import sys
 import datetime
 import re 
 import pandas as pd
@@ -7,6 +8,7 @@ from matplotlib import pyplot as plt
 import hdbscan
 from sklearn.cluster import KMeans, AgglomerativeClustering, AffinityPropagation, DBSCAN #For clustering
 from sklearn.mixture import GaussianMixture #For GMM clustering
+from sklearn.metrics import mean_squared_error
 import matplotlib.ticker as ticker
 from tslearn.clustering import TimeSeriesKMeans
 import random
@@ -254,7 +256,7 @@ def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2,
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
-                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, check_nan=0):
+                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, check_nan=0, return_permutation_distribution=False):
     
     df = list_of_dfs[0]
     
@@ -366,7 +368,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         if(showPlots):
             ax.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
             ax.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
-            #ax.plot(df.index[:low_thresh], model_fit, label = 'Fitted model', color='g', linestyle=':')
+            ax.plot(df.index[:low_thresh], model_fit, label = 'Fitted model', color='g', linestyle=':')
             ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
 
             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
@@ -385,7 +387,31 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
                 #pred_plot.remove()
 
             elif(showPlots):
-                plt.show()    
+                plt.show()
+                
+    if return_permutation_distribution:
+        # sklearn MSE is different from our MSE defined above; I'm not sure what our MSE is intended to represent, as I have never seen MSE defined in that way.
+        def find_ri(actual, model_fit, predictions):
+            return mean_squared_error(actual[len(model_fit):len(model_fit) + len(predictions)], predictions) / mean_squared_error(actual[:len(model_fit)], model_fit)
+        
+        out_dict = dict()
+        
+        out_dict[state] = find_ri(actual, model_fit, predictions) # this only works when prediction_states has length 1
+        
+        for state in otherStates:
+            donorPool = otherStates.copy()
+            donorPool.remove(state)
+            rscModel = RobustSyntheticControl(state, singVals, len(trainDF), probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=donorPool)
+            rscModel.fit(trainDF)
+            
+            actual = df[state].fillna(0)
+            model_fit = np.dot(trainDF[donorPool].fillna(0), rscModel.model.weights)
+            predictions = np.dot(testDF[donorPool].fillna(0), rscModel.model.weights)
+            
+            out_dict[state] = find_ri(actual, model_fit, predictions)
+        
+        return out_dict
+        
     if(error<error_thresh):
         return(dict(zip(otherStates, rscModel.model.weights)))
     else:
