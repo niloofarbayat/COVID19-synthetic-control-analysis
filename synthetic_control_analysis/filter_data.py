@@ -1,3 +1,4 @@
+import sys
 import datetime
 import re 
 import pandas as pd
@@ -7,7 +8,12 @@ from matplotlib import pyplot as plt
 import hdbscan
 from sklearn.cluster import KMeans, AgglomerativeClustering, AffinityPropagation, DBSCAN #For clustering
 from sklearn.mixture import GaussianMixture #For GMM clustering
+from sklearn.metrics import mean_squared_error
 import matplotlib.ticker as ticker
+from tslearn.clustering import TimeSeriesKMeans
+import random
+import matplotlib.colors as mcolors
+
 
 
 
@@ -71,8 +77,8 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
 
 #Functions to create intervention adjusted data based on the social distancing metrics.
 
-def create_intervention_adjusted_data(df, intervention, rolling_average_duration): 
-    intervention_adjusted, intervention_dates = filter_data_by_intervention(df, intervention)
+def create_intervention_adjusted_data(df, intervention, rolling_average_duration, ignore_nan=False): 
+    intervention_adjusted, intervention_dates = filter_data_by_intervention(df, intervention, ignore_nan=ignore_nan)
     intervention_adjusted_daily = create_rolling_data(intervention_adjusted, rolling_average_duration)
     #intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
     return intervention_adjusted, intervention_adjusted_daily, intervention_dates
@@ -80,7 +86,7 @@ def create_intervention_adjusted_data(df, intervention, rolling_average_duration
 
 # function to create filtered dataframe based on intervention dates and align timeseries
 
-def filter_data_by_intervention(df, intervention, lag=0):
+def filter_data_by_intervention(df, intervention, lag=0, ignore_nan=False):
     newdf = pd.DataFrame()
     if (lag > 0):
         subscript=" -"+str(lag)
@@ -93,7 +99,7 @@ def filter_data_by_intervention(df, intervention, lag=0):
         intervention_date = intervention[intervention.name == state].date.values
         if(intervention_date.size>0):
             newdata = df.loc[pd.to_datetime(df.index)>=pd.to_datetime(intervention_date[0])][state].values
-            if(np.isnan(newdata[:5]).any()):
+            if(not ignore_nan and np.isnan(newdata[:5]).any()):
                 print(state)
                 continue
             newdf = pd.concat([newdf, pd.DataFrame(columns=[state+subscript],
@@ -120,10 +126,30 @@ def get_social_distancing(df, intervention_tried):
 def mse(y1, y2):
     return np.sum((y1 - y2) ** 2) / len(y1)/np.sqrt(np.square(y1).sum())
 
+def find_testing_diversion(y1, y2):
+    # return np.sum((y1-y2)/y2)
+    # y2_copy = y2.copy()
+    # y2 = y2[y2_copy != 0]
+    # y1 = y1[y2_copy != 0] 
+    # return np.sum((y1-y2)/np.abs(y2))
+
+    return np.sum(abs(y1-y2))/np.sum(y2)
+
+
 def compute_singular_values(df):
     (U, s, Vh) = np.linalg.svd((df) - np.mean(df))
     s2 = np.power(s, 2)
     return pd.Series(s2)
+
+def get_colors(num, picker = 11):
+    
+    all_c = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgb(color))),name) for name, color in mcolors.CSS4_COLORS.items())
+    selected_c = []
+    for c in all_c:
+        if (np.array(c[0]) > np.array([0.2, 0.2, 0.2])).all():
+            selected_c.append(c[1])
+    m = len(selected_c)//num
+    return selected_c[picker%m:picker%(len(selected_c) - num * m) + m*num:m]
 
 # function to build and plot synthetic control baswed projections. The first threshold is which regions to use in the donor pool 
 # - the ones that have had the timeseries for threshold days and above. The low_thresh is to do predictions for regions that
@@ -155,7 +181,7 @@ def plot_cluster(feature_dict, list_of_dfs, x_labels = [], y_labels = []):
         i += 1
     plt.show()
 
-def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', n_clusters = 4, min_cluster_size = 2, min_sample = 1):
+def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', metric = 'euclidean', n_clusters = 4, min_cluster_size = 2, min_sample = 1):
     features = time_series_data.T
     if cluster_method == 'HDBSCAN':
         clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples = min_sample)
@@ -163,7 +189,11 @@ def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', n_clusters
         features['cluster']= clusterer.labels_
         feature_dict = features.groupby('cluster').groups
     if cluster_method == 'kmeans':
-        kmeans = KMeans(n_clusters=n_clusters)
+
+        #kmeans = KMeans(n_clusters=n_clusters)
+        kmeans = TimeSeriesKMeans(n_clusters=n_clusters, metric=metric, max_iter=5,
+                          max_iter_barycenter=5,
+                          random_state=0)
         y = kmeans.fit_predict(features)
         features['cluster']= y
         feature_dict = features.groupby('cluster').groups
@@ -224,15 +254,11 @@ def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2,
 
 
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
-                               savePlots=False, ylimit=[], logy=False, exclude=[], 
+                               savePlots=False, ylimit=[],xlimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
-                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None):
+                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, check_nan=0, return_permutation_distribution=False):
     
-    
-    #print('yo', list_of_dfs,'bo')
-    #print(len(list_of_dfs))
     df = list_of_dfs[0]
-    
     
     if (donorPool):
         otherStates=donorPool.copy()
@@ -269,6 +295,15 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
     else:
         prediction_states = list(sizes[(sizes>low_thresh) & (sizes<=threshold)].index)
     
+    if check_nan:
+        start = max(df[state].first_valid_index() for state in prediction_states)
+        if low_thresh - start > check_nan:
+            start = low_thresh - check_nan
+        df = df.iloc[start:].reset_index(drop=True)
+        list_of_dfs = [df.iloc[start:].reset_index(drop=True) for df in list_of_dfs]
+        low_thresh -= start
+        otherStates = [state for state in otherStates if df[state].first_valid_index() == 0]
+        print('final donorpool: ', otherStates)
     
     for state in prediction_states:
         all_rows = list.copy(otherStates)
@@ -293,8 +328,10 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         denoisedDF = rscModel.model.denoisedDF()
         predictions = []
     
-        predictions = np.dot(testDF[otherStates].values, rscModel.model.weights)
-        predictions_noisy = np.dot(testDF[otherStates].values, rscModel.model.weights)
+        predictions = np.dot(testDF[otherStates].fillna(0).values, rscModel.model.weights)
+        predictions_noisy = np.dot(testDF[otherStates].fillna(0).values, rscModel.model.weights)
+
+        predictions[predictions < 0 ] = 0
         x_actual= df[state].index #range(sizes[state])
         actual = df[state] #df.iloc[:sizes[state],:][state]
         
@@ -309,7 +346,9 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             plt.title("Singular Value Spectrum", fontsize=FONTSIZE)
             plt.show()
         x_predictions=df.index[low_thresh:low_thresh+len(predictions)] #range(low_thresh,low_thresh+len(predictions))
-        model_fit = np.dot(trainDF[otherStates][:], rscModel.model.weights)
+        model_fit = np.dot(trainDF[otherStates][:].fillna(0), rscModel.model.weights)
+
+        model_fit[model_fit < 0] = 0
         error = mse(actual[:low_thresh], model_fit)
         if not silent:
             print(state, error)
@@ -317,12 +356,15 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         #     plt.figure(figsize=(16,6))
         ind = np.argpartition(rscModel.model.weights, -showstates)[-showstates:]
         topstates = [otherStates[i] for i in ind]
-        if showDonors:      
+        if showDonors:
             axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
             axes[0].set_title("Normalized weights for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+            axes[0].tick_params(axis='both', which='major', labelsize=FONTSIZE)
         ax = axes[-1] if showDonors else axes
         if(ylimit):
             ax.set_ylim(ylimit)
+        if(xlimit):
+            ax.set_xlim(xlimit)
         if(logy):
             ax.set_yscale('log')
         if(showPlots):
@@ -333,26 +375,45 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
 
             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
             ax.grid()
-            if showDonors:
+            ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
+            if title_text:
                 ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
-            else:
-                ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
-                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-                ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
-                ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-                ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+            ax.set_xlabel("Days since intervention", fontsize=FONTSIZE)
+            ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+            ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
-                plt.savefig("../Figures/COVID/"+state+".png")        
+                plt.savefig("../Figures/COVID/"+state+'.pdf',bbox_inches='tight')    
             if(animation):
                 animation.snap()
 
                 #pred_plot.remove()
 
             elif(showPlots):
-                plt.show()    
+                plt.show()
+                
+    if return_permutation_distribution:
+        # sklearn MSE is different from our MSE defined above; I'm not sure what our MSE is intended to represent, as I have never seen MSE defined in that way.
+        def find_ri(actual, model_fit, predictions):
+            return mean_squared_error(actual[len(model_fit):len(model_fit) + len(predictions)], predictions) / mean_squared_error(actual[:len(model_fit)], model_fit)
+        
+        out_dict = dict()
+        
+        out_dict[state] = find_ri(actual, model_fit, predictions) # this only works when prediction_states has length 1
+        
+        for state in otherStates:
+            donorPool = otherStates.copy()
+            donorPool.remove(state)
+            rscModel = RobustSyntheticControl(state, singVals, len(trainDF), probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=donorPool)
+            rscModel.fit(trainDF)
+            
+            actual = df[state].fillna(0)
+            model_fit = np.dot(trainDF[donorPool].fillna(0), rscModel.model.weights)
+            predictions = np.dot(testDF[donorPool].fillna(0), rscModel.model.weights)
+            
+            out_dict[state] = find_ri(actual, model_fit, predictions)
+        
+        return out_dict
+        
     if(error<error_thresh):
         return(dict(zip(otherStates, rscModel.model.weights)))
     else:
@@ -370,6 +431,19 @@ def create_peak_clusters(df, threshold=5):
     #plt.scatter(global_peak_size['days to peak'], (global_peak_size['peak value']), s=2*global_peak_size['initial value']), 
     return global_peak_size
 
+
+
+def find_close(df, date_check, infection_level, infection_threshold, county = True, exclude_state = []):
+    counties_close = []
+    for region in df:
+        names = [region]
+        if county:
+            names = region.split('-')
+        if names[0] != 'Unknown' and (names[-1] not in exclude_state) and \
+            (infection_level - infection_threshold <= df[region][date_check] <= infection_level + infection_threshold):
+
+            counties_close.append(region)
+    return counties_close
 
 # account for the weekends in mobility data
 def is_weekend (date):   
