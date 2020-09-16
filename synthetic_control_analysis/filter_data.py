@@ -254,7 +254,7 @@ def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2,
 
 
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
-                               savePlots=False, ylimit=[], logy=False, exclude=[], 
+                               savePlots=False, ylimit=[],xlimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
                               donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, check_nan=0, return_permutation_distribution=False):
     
@@ -363,6 +363,8 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         ax = axes[-1] if showDonors else axes
         if(ylimit):
             ax.set_ylim(ylimit)
+        if(xlimit):
+            ax.set_xlim(xlimit)
         if(logy):
             ax.set_yscale('log')
         if(showPlots):
@@ -376,7 +378,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
             if title_text:
                 ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-            ax.set_xlabel("Days since Intervention", fontsize=FONTSIZE)
+            ax.set_xlabel("Days since intervention", fontsize=FONTSIZE)
             ax.set_ylabel(yaxis, fontsize=FONTSIZE)
             ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
             if (savePlots):
