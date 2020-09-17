@@ -17,7 +17,6 @@ import matplotlib.colors as mcolors
 
 
 
-
 # function to create filtered dataframe based on thressholds and align timeseries to that start of the spread
 def create_filtered_data(df, threshold):
     pattern = re.compile('(Unknown|Unassigned)')
@@ -252,11 +251,13 @@ def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2,
 
 
 
-
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[],xlimit=[], logy=False, exclude=[], 
-                               svdSpectrum=False, showDonors=True, do_only=[], showstates=4, animation=[], figure=None, axes=None,
-                              donorPool=[], silent=True, showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, check_nan=0, return_permutation_distribution=False):
+                               svdSpectrum=False, showDonors=True, do_only=[], showstates=4, 
+                               animation=[], figure=None, axes=None,donorPool=[], silent=True, 
+                               showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, 
+                               yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, 
+                               check_nan=0, return_permutation_distribution=False, intervention_date_x_ticks = None):
     
     df = list_of_dfs[0]
     
@@ -368,6 +369,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         if(logy):
             ax.set_yscale('log')
         if(showPlots):
+            #if not 
             ax.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
             ax.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
             ax.plot(df.index[:low_thresh], model_fit, label = 'Fitted model', color='g', linestyle=':')
@@ -381,15 +383,34 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             ax.set_xlabel("Days since intervention", fontsize=FONTSIZE)
             ax.set_ylabel(yaxis, fontsize=FONTSIZE)
             ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+            
+            #pred_plot.remove()
+            #plt.show()
+            fig.canvas.draw()
+  
+            if intervention_date_x_ticks:
+                labels = [item.get_text() for item in ax.get_xticklabels()]
+                x_labels = []
+                ts = (pd.to_datetime(intervention_date_x_ticks[state]))
+                #ts = pd.to_datetime(str(date)) 
+                for label in labels:
+                    tmp_date = ts + datetime.timedelta(days = int(label))
+                    x_labels.append(tmp_date.strftime('%Y-%m-%d'))
+                ax.set_xlabel("Date", fontsize=FONTSIZE)
+                
+                #print(x_labels)
+                #int_date = (ts.strftime('%Y-%m-%d'))
+                #labels = list(df.index.values)
+                ax.set_xticklabels(x_labels, rotation=45)
+                
+            
             if (savePlots):
                 plt.savefig("../Figures/COVID/"+state+'.pdf',bbox_inches='tight')    
             if(animation):
                 animation.snap()
-
-                #pred_plot.remove()
-
-            elif(showPlots):
+            else:
                 plt.show()
+
                 
     if return_permutation_distribution:
         # sklearn MSE is different from our MSE defined above; I'm not sure what our MSE is intended to represent, as I have never seen MSE defined in that way.
@@ -419,6 +440,8 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
     else:
         print(state, error)
         return(dict(zip(otherStates, -50*np.ones(len(rscModel.model.weights)))))
+
+
 # function to track peaks in cases or death rates
 def create_peak_clusters(df, threshold=5):
     df_temp = df
