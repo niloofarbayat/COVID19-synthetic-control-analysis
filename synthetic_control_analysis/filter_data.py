@@ -122,17 +122,21 @@ def get_social_distancing(df, intervention_tried):
     print("Exceptions are", exception_list)
     return social_distancing
 
-def mse(y1, y2):
-    return np.sum((y1 - y2) ** 2) / len(y1)/np.sqrt(np.square(y1).sum())
 
-def find_testing_diversion(y1, y2):
-    # return np.sum((y1-y2)/y2)
-    # y2_copy = y2.copy()
-    # y2 = y2[y2_copy != 0]
-    # y1 = y1[y2_copy != 0] 
-    # return np.sum((y1-y2)/np.abs(y2))
+def find_testing_diversion(y_actual, y_pred):
+    #return np.sum((y_actual - y_pred) ** 2) / len(y_actual)/np.sqrt(np.square(y_actual).sum())
+    
+    return np.sum((y_actual - y_pred) ** 2) / len(y_actual) #/(y_actual[0])
 
-    return np.sum(abs(y1-y2))/np.sum(y2)
+    #return np.sum(abs(y1-y2))/np.sum(y2)
+    
+def mse(y_actual, y_pred):
+    return np.sum((y_actual - y_pred) ** 2) / len(y_actual)/np.sqrt(np.square(y_actual).sum())
+    #return np.sum((y_actual - y_pred) ** 2) /len(y_actual)#/((y_actual).sum()/len(y_actual))
+
+    #return np.sum((y_actual - y_pred) ** 2) / len(y_actual)/np.mean(y_actual)
+    
+    
 
 
 def compute_singular_values(df):
@@ -386,7 +390,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             
             #pred_plot.remove()
             #plt.show()
-            fig.canvas.draw()
+            figure.canvas.draw()
   
             if intervention_date_x_ticks:
                 labels = [item.get_text() for item in ax.get_xticklabels()]
