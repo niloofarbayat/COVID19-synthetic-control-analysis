@@ -14,6 +14,8 @@ from tslearn.clustering import TimeSeriesKMeans
 import random
 import matplotlib.colors as mcolors
 
+from syn_model import *
+
 
 
 
@@ -265,42 +267,18 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
     
     df = list_of_dfs[0]
     
-    if (donorPool):
+    if donorPool:
         otherStates=donorPool.copy()
     else:
         sizes = df.apply(pd.Series.last_valid_index)
         sizes = sizes.fillna(0).astype(int)
         otherStates = list(sizes[sizes>threshold].index)
-    if(exclude):
-        for member in exclude:
-            if(member in otherStates):
-                otherStates.remove(member)
-    if(do_only):
-        for member in exclude:
-            if(member in otherStates):
-                otherStates.remove(member)
-        for member in do_only:
-            if(member in otherStates):
-                otherStates.remove(member)
-            
-    
-    showstates = np.minimum(showstates,len(otherStates))
-    otherStatesNames = otherStates
-    otherStatesNames = [w.replace('-None', '') for w in otherStates]
-    
-    for state in otherStatesNames:
-        state.replace("-None","")
-    if not silent:
-        print(otherStates)
-    if(do_only):
-        #prediction_states = list(sizes[sizes.index.isin(do_only)].index)
-        prediction_states = do_only
-        if not silent:
-            print(prediction_states)
-    else:
-        prediction_states = list(sizes[(sizes>low_thresh) & (sizes<=threshold)].index)
+
+    otherStates = list(set(otherStates).difference(set(exclude).union(set(do_only))))
+    prediction_states = do_only if do_only else list(sizes[(sizes>low_thresh) & (sizes<=threshold)].index)
     
     if check_nan:
+
         start = max(df[state].first_valid_index() for state in prediction_states)
         if low_thresh - start > check_nan:
             start = low_thresh - check_nan
@@ -309,142 +287,33 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
         low_thresh -= start
         otherStates = [state for state in otherStates if df[state].first_valid_index() == 0]
         print('final donorpool: ', otherStates)
+
+    all_models = []
     
     for state in prediction_states:
-        all_rows = list.copy(otherStates)
-        all_rows.append(state)
-        if not mRSC:
-            if random_distribution:
-                trainDF = df + random_distribution(df.shape)
-                trainDF = trainDF.iloc[:low_thresh,:]
-            else:
-                trainDF = df.iloc[:low_thresh,:]
-        else:
-            num_dimensions = len(lambdas)
-            trainDF=pd.DataFrame()
-            length_one_dimension = list_of_dfs[0].shape[0]
-            for i in range(num_dimensions):
-                trainDF=pd.concat([trainDF,lambdas[i]*list_of_dfs[i].iloc[:low_thresh,:]], axis=0)
-        if not silent:
-            print(trainDF.shape)
-        testDF=df.iloc[low_thresh+1:threshold,:]
-        rscModel = RobustSyntheticControl(state, singVals, len(trainDF), probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=otherStates)
-        rscModel.fit(trainDF)
-        denoisedDF = rscModel.model.denoisedDF()
-        predictions = []
-    
-        predictions = np.dot(testDF[otherStates].fillna(0).values, rscModel.model.weights)
-        predictions_noisy = np.dot(testDF[otherStates].fillna(0).values, rscModel.model.weights)
 
-        predictions[predictions < 0 ] = 0
-        x_actual= df[state].index #range(sizes[state])
-        actual = df[state] #df.iloc[:sizes[state],:][state]
-        
-        if (svdSpectrum):
-            (U, s, Vh) = np.linalg.svd((trainDF[all_rows]) - np.mean(trainDF[all_rows]))
-            s2 = np.power(s, 2)
-            plt.figure(figsize=(8,6))
-            plt.plot(s2)
-            plt.grid()
-            plt.xlabel("Ordered Singular Values", fontsize=FONTSIZE) 
-            plt.ylabel("Energy", fontsize=FONTSIZE)
-            plt.title("Singular Value Spectrum", fontsize=FONTSIZE)
-            plt.show()
-        x_predictions=df.index[low_thresh:low_thresh+len(predictions)] #range(low_thresh,low_thresh+len(predictions))
-        model_fit = np.dot(trainDF[otherStates][:].fillna(0), rscModel.model.weights)
+        rscModel = syn_model(state, singVals, list_of_dfs, threshold, low_thresh, 
+                                random_distribution = random_distribution, lambdas = lambdas, mRSC = mRSC, otherStates=otherStates)
+        rscModel.fit_model()
 
-        model_fit[model_fit < 0] = 0
-        error = mse(actual[:low_thresh], model_fit)
-        if not silent:
-            print(state, error)
-        # if showPlots:
-        #     plt.figure(figsize=(16,6))
-        ind = np.argpartition(rscModel.model.weights, -showstates)[-showstates:]
-        topstates = [otherStates[i] for i in ind]
-        if showDonors:
-            axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
-            axes[0].set_title("Normalized weights for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-            axes[0].tick_params(axis='both', which='major', labelsize=FONTSIZE)
-        ax = axes[-1] if showDonors else axes
-        if(ylimit):
-            ax.set_ylim(ylimit)
-        if(xlimit):
-            ax.set_xlim(xlimit)
-        if(logy):
-            ax.set_yscale('log')
-        if(showPlots):
-            #if not 
-            ax.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
-            ax.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
-            ax.plot(df.index[:low_thresh], model_fit, label = 'Fitted model', color='g', linestyle=':')
-            ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
+        if rscModel.train_err > error_thresh:
+            print(state, rscModel.train_err)
+            continue
+        if svdSpectrum:
+            rscModel.svd_spectrum()
 
-            ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
-            ax.grid()
-            ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
-            if title_text:
-                ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
-            ax.set_xlabel("Days since intervention", fontsize=FONTSIZE)
-            ax.set_ylabel(yaxis, fontsize=FONTSIZE)
-            ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+        if showPlots:
+            rscModel.plot(figure, axes, title_text, ylimit, xlimit, logy, showDonors, tick_spacing, yaxis, intervention_date_x_ticks)
             
-            #pred_plot.remove()
-            #plt.show()
-            figure.canvas.draw()
-  
-            if intervention_date_x_ticks:
-                labels = [item.get_text() for item in ax.get_xticklabels()]
-                x_labels = []
-                ts = (pd.to_datetime(intervention_date_x_ticks[state]))
-                #ts = pd.to_datetime(str(date)) 
-                for label in labels:
-                    tmp_date = ts + datetime.timedelta(days = int(label))
-                    x_labels.append(tmp_date.strftime('%Y-%m-%d'))
-                ax.set_xlabel("Date", fontsize=FONTSIZE)
-                
-                #print(x_labels)
-                #int_date = (ts.strftime('%Y-%m-%d'))
-                #labels = list(df.index.values)
-                ax.set_xticklabels(x_labels, rotation=45)
-                
-            
-            if (savePlots):
+            if savePlots:
                 plt.savefig("../Figures/COVID/"+state+'.pdf',bbox_inches='tight')    
-            if(animation):
+            if animation:
                 animation.snap()
             else:
                 plt.show()
+        all_models.append(rscModel)
 
-                
-    if return_permutation_distribution:
-        # sklearn MSE is different from our MSE defined above; I'm not sure what our MSE is intended to represent, as I have never seen MSE defined in that way.
-        def find_ri(actual, model_fit, predictions):
-            return mean_squared_error(actual[len(model_fit):len(model_fit) + len(predictions)], predictions) / mean_squared_error(actual[:len(model_fit)], model_fit)
-        
-        out_dict = dict()
-        
-        out_dict[state] = find_ri(actual, model_fit, predictions) # this only works when prediction_states has length 1
-        
-        for state in otherStates:
-            donorPool = otherStates.copy()
-            donorPool.remove(state)
-            rscModel = RobustSyntheticControl(state, singVals, len(trainDF), probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=donorPool)
-            rscModel.fit(trainDF)
-            
-            actual = df[state].fillna(0)
-            model_fit = np.dot(trainDF[donorPool].fillna(0), rscModel.model.weights)
-            predictions = np.dot(testDF[donorPool].fillna(0), rscModel.model.weights)
-            
-            out_dict[state] = find_ri(actual, model_fit, predictions)
-        
-        return out_dict
-        
-    if(error<error_thresh):
-        return(dict(zip(otherStates, rscModel.model.weights)))
-    else:
-        print(state, error)
-        return(dict(zip(otherStates, -50*np.ones(len(rscModel.model.weights)))))
-
+    return all_models
 
 # function to track peaks in cases or death rates
 def create_peak_clusters(df, threshold=5):
@@ -521,3 +390,198 @@ def find_lockdown_date(state_list,df, mobility_us, max_days = 1, min_mobility = 
         #print(end_date, mobility_us[state_list[i-1]].index[0], mobility_us[state_list[i-1]].index[-1])
     return newdf, lockdown_dates
         
+
+
+# Old version of synth_control_predictions function
+# def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
+#                                savePlots=False, ylimit=[],xlimit=[], logy=False, exclude=[], 
+#                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, 
+#                                animation=[], figure=None, axes=None,donorPool=[], silent=True, 
+#                                showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, 
+#                                yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, 
+#                                check_nan=0, return_permutation_distribution=False, intervention_date_x_ticks = None):
+    
+#     df = list_of_dfs[0]
+    
+#     if (donorPool):
+#         otherStates=donorPool.copy()
+#     else:
+#         sizes = df.apply(pd.Series.last_valid_index)
+#         sizes = sizes.fillna(0).astype(int)
+#         otherStates = list(sizes[sizes>threshold].index)
+#     if(exclude):
+#         for member in exclude:
+#             if(member in otherStates):
+#                 otherStates.remove(member)
+#     if(do_only):
+#         for member in exclude:
+#             if(member in otherStates):
+#                 otherStates.remove(member)
+#         for member in do_only:
+#             if(member in otherStates):
+#                 otherStates.remove(member)
+            
+    
+#     showstates = np.minimum(showstates,len(otherStates))
+#     otherStatesNames = otherStates
+#     otherStatesNames = [w.replace('-None', '') for w in otherStates]
+    
+#     for state in otherStatesNames:
+#         state.replace("-None","")
+#     if not silent:
+#         print(otherStates)
+#     if(do_only):
+#         #prediction_states = list(sizes[sizes.index.isin(do_only)].index)
+#         prediction_states = do_only
+#         if not silent:
+#             print(prediction_states)
+#     else:
+#         prediction_states = list(sizes[(sizes>low_thresh) & (sizes<=threshold)].index)
+    
+#     if check_nan:
+#         start = max(df[state].first_valid_index() for state in prediction_states)
+#         if low_thresh - start > check_nan:
+#             start = low_thresh - check_nan
+#         df = df.iloc[start:].reset_index(drop=True)
+#         list_of_dfs = [df.iloc[start:].reset_index(drop=True) for df in list_of_dfs]
+#         low_thresh -= start
+#         otherStates = [state for state in otherStates if df[state].first_valid_index() == 0]
+#         print('final donorpool: ', otherStates)
+    
+#     for state in prediction_states:
+#         all_rows = list.copy(otherStates)
+#         all_rows.append(state)
+#         if not mRSC:
+#             if random_distribution:
+#                 trainDF = df + random_distribution(df.shape)
+#                 trainDF = trainDF.iloc[:low_thresh,:]
+#             else:
+#                 trainDF = df.iloc[:low_thresh,:]
+#         else:
+#             num_dimensions = len(lambdas)
+#             trainDF=pd.DataFrame()
+#             length_one_dimension = list_of_dfs[0].shape[0]
+#             for i in range(num_dimensions):
+#                 trainDF=pd.concat([trainDF,lambdas[i]*list_of_dfs[i].iloc[:low_thresh,:]], axis=0)
+#         if not silent:
+#             print(trainDF.shape)
+#         testDF=df.iloc[low_thresh+1:threshold,:]
+#         rscModel = RobustSyntheticControl(state, singVals, len(trainDF), probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=otherStates)
+#         rscModel.fit(trainDF)
+#         denoisedDF = rscModel.model.denoisedDF()
+#         predictions = []
+    
+#         predictions = np.dot(testDF[otherStates].fillna(0).values, rscModel.model.weights)
+#         predictions_noisy = np.dot(testDF[otherStates].fillna(0).values, rscModel.model.weights)
+
+#         predictions[predictions < 0 ] = 0
+#         x_actual= df[state].index #range(sizes[state])
+#         actual = df[state] #df.iloc[:sizes[state],:][state]
+        
+#         if (svdSpectrum):
+#             (U, s, Vh) = np.linalg.svd((trainDF[all_rows]) - np.mean(trainDF[all_rows]))
+#             s2 = np.power(s, 2)
+#             plt.figure(figsize=(8,6))
+#             plt.plot(s2)
+#             plt.grid()
+#             plt.xlabel("Ordered Singular Values", fontsize=FONTSIZE) 
+#             plt.ylabel("Energy", fontsize=FONTSIZE)
+#             plt.title("Singular Value Spectrum", fontsize=FONTSIZE)
+#             plt.show()
+#         x_predictions=df.index[low_thresh:low_thresh+len(predictions)] #range(low_thresh,low_thresh+len(predictions))
+#         model_fit = np.dot(trainDF[otherStates][:].fillna(0), rscModel.model.weights)
+
+#         model_fit[model_fit < 0] = 0
+#         error = mse(actual[:low_thresh], model_fit)
+#         if not silent:
+#             print(state, error)
+#         # if showPlots:
+#         #     plt.figure(figsize=(16,6))
+#         ind = np.argpartition(rscModel.model.weights, -showstates)[-showstates:]
+#         topstates = [otherStates[i] for i in ind]
+#         if showDonors:
+#             axes[0].barh(otherStates, rscModel.model.weights/np.max(rscModel.model.weights), color=list('rgbkymc'))
+#             axes[0].set_title("Normalized weights for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+#             axes[0].tick_params(axis='both', which='major', labelsize=FONTSIZE)
+#         ax = axes[-1] if showDonors else axes
+#         if(ylimit):
+#             ax.set_ylim(ylimit)
+#         if(xlimit):
+#             ax.set_xlim(xlimit)
+#         if(logy):
+#             ax.set_yscale('log')
+#         if(showPlots):
+#             #if not 
+#             ax.plot(x_actual,actual,label='Actuals', color='k', linestyle='-')
+#             ax.plot(x_predictions,predictions,label='Predictions', color='r', linestyle='--')
+#             ax.plot(df.index[:low_thresh], model_fit, label = 'Fitted model', color='g', linestyle=':')
+#             ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
+
+#             ax.axvline(x=df.index[low_thresh-1], color='k', linestyle='--', linewidth=4)
+#             ax.grid()
+#             ax.tick_params(axis='both', which='major', labelsize=FONTSIZE)
+#             if title_text:
+#                 ax.set_title(title_text+" for "+str(state).replace("-None",""), fontsize=FONTSIZE)
+#             ax.set_xlabel("Days since intervention", fontsize=FONTSIZE)
+#             ax.set_ylabel(yaxis, fontsize=FONTSIZE)
+#             ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=FONTSIZE)
+            
+#             #pred_plot.remove()
+#             #plt.show()
+#             figure.canvas.draw()
+  
+#             if intervention_date_x_ticks:
+#                 labels = [item.get_text() for item in ax.get_xticklabels()]
+#                 x_labels = []
+#                 ts = (pd.to_datetime(intervention_date_x_ticks[state]))
+#                 #ts = pd.to_datetime(str(date)) 
+#                 for label in labels:
+#                     tmp_date = ts + datetime.timedelta(days = int(label))
+#                     x_labels.append(tmp_date.strftime('%Y-%m-%d'))
+#                 ax.set_xlabel("Date", fontsize=FONTSIZE)
+                
+#                 #print(x_labels)
+#                 #int_date = (ts.strftime('%Y-%m-%d'))
+#                 #labels = list(df.index.values)
+#                 ax.set_xticklabels(x_labels, rotation=45)
+                
+            
+#             if (savePlots):
+#                 plt.savefig("../Figures/COVID/"+state+'.pdf',bbox_inches='tight')    
+#             if(animation):
+#                 animation.snap()
+#             else:
+#                 plt.show()
+
+                
+#     if return_permutation_distribution:
+#         # sklearn MSE is different from our MSE defined above; I'm not sure what our MSE is intended to represent, as I have never seen MSE defined in that way.
+#         def find_ri(actual, model_fit, predictions):
+#             return mean_squared_error(actual[len(model_fit):len(model_fit) + len(predictions)], predictions) / mean_squared_error(actual[:len(model_fit)], model_fit)
+        
+#         out_dict = dict()
+        
+#         out_dict[state] = find_ri(actual, model_fit, predictions) # this only works when prediction_states has length 1
+        
+#         for state in otherStates:
+#             donorPool = otherStates.copy()
+#             donorPool.remove(state)
+#             rscModel = RobustSyntheticControl(state, singVals, len(trainDF), probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=donorPool)
+#             rscModel.fit(trainDF)
+            
+#             actual = df[state].fillna(0)
+#             model_fit = np.dot(trainDF[donorPool].fillna(0), rscModel.model.weights)
+#             predictions = np.dot(testDF[donorPool].fillna(0), rscModel.model.weights)
+            
+#             out_dict[state] = find_ri(actual, model_fit, predictions)
+        
+#         return out_dict
+        
+#     if(error<error_thresh):
+#         return(dict(zip(otherStates, rscModel.model.weights)))
+#     else:
+#         print(state, error)
+#         return(dict(zip(otherStates, -50*np.ones(len(rscModel.model.weights)))))
+
+
+
