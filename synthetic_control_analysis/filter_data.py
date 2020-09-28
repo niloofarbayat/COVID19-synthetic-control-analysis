@@ -266,14 +266,10 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
                                check_nan=0, return_permutation_distribution=False, intervention_date_x_ticks = None):
     
     df = list_of_dfs[0]
-    
-    if donorPool:
-        otherStates=donorPool.copy()
-    else:
-        sizes = df.apply(pd.Series.last_valid_index)
-        sizes = sizes.fillna(0).astype(int)
-        otherStates = list(sizes[sizes>threshold].index)
+    sizes = df.apply(pd.Series.last_valid_index)
+    sizes = sizes.fillna(0).astype(int)
 
+    otherStates = donorPool.copy() if donorPool else list(sizes[sizes>threshold].index)
     otherStates = list(set(otherStates).difference(set(exclude).union(set(do_only))))
     prediction_states = do_only if do_only else list(sizes[(sizes>low_thresh) & (sizes<=threshold)].index)
     
