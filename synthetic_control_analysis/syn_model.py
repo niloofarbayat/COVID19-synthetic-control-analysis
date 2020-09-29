@@ -116,20 +116,24 @@ class syn_model(RobustSyntheticControl):
         
         out_dict[self.state] = self.find_ri()
         
-        for state in self.donors:
+        for donor in self.donors:
             donorPool = self.donors.copy()
-            donorPool.remove(state)
-            temp_model = syn_model(state, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
+            donorPool.remove(donor)
+            temp_model = syn_model(donor, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
             temp_model.fit_model()
-            out_dict[state] = temp_model.find_ri()
+            out_dict[donor] = temp_model.find_ri()
         if show_graph:
             sorted_dict = sorted(out_dict.items(), key=lambda item: item[1])
             states = [item[0] for item in sorted_dict[-show_donors:]]
             values = [item[1] for item in sorted_dict[-show_donors:]]
-            plt.barh(states,values)
-            plt.xlabel('RI Score')
-            plt.title('Permutation distribution graph')
+            
+            fig, ax = plt.subplots(figsize=(16,6))
+            ax.barh(states,values)
+            ax.set_xlabel('RI Score')
+            ax.set_title('Permutation distribution graph')
+            for i, v in enumerate(values):
+                ax.text(v, i - 0.15, "%3g" % v)
         
         return out_dict
 
