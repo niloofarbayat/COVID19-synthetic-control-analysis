@@ -27,7 +27,7 @@ class syn_model(RobustSyntheticControl):
         dfs:                        (array) list of dataframe will be used to predict. It will have the same size with lambdas
         thresh:                     (int) The whole time span that will be used to predict
         low_thresh:                 (int) The cut-off between training and testing
-        random_distribution:        (function) Random_distribution to the observation
+        random_distribution:        (function) Add Randomness to the observation
         lambdas:                    (array) The list of weights for each dataframe in dfs. If there is only one dataframe, it will be [1]
         mRSC:                       (bool) If we will perform multi-dimensional Robust Synthetic Control. 
                                            if it is true, dfs should at least contain 2 elements.
@@ -162,7 +162,7 @@ class syn_model(RobustSyntheticControl):
         '''
         return self.testing_error(metrics)/self.training_error(metrics)
 
-    def permutation_distribution(self, show_graph = True, show_donors = 10):
+    def permutation_distribution(self, show_graph = True, show_donors = 10, ax = None):
         '''
         Find the premutation_distribution for the states with all it donors
 
@@ -170,6 +170,7 @@ class syn_model(RobustSyntheticControl):
         show_graph: (bool) True for ploting the permutation_distribution graph
         show_donors: number of donors that will be shown in the graph, from large to small. 
                       Could be 'All' if you want to include all the donors. 
+        xes: plt axes object for ploting. Use if you define external plt subplot
         '''
 
         if show_donors == 'All':
@@ -188,16 +189,21 @@ class syn_model(RobustSyntheticControl):
             out_dict[donor] = temp_model.find_ri()
         if show_graph:
             sorted_dict = sorted(out_dict.items(), key=lambda item: item[1])
-            states = [item[0] for item in sorted_dict[-show_donors:]]
-            values = [item[1] for item in sorted_dict[-show_donors:]]
-            
-            fig, ax = plt.subplots(figsize=(16,6))
+            states = [item[0] for item in sorted_dict[-show_donors:] if item[0] != self.state]
+            values = [item[1] for item in sorted_dict[-show_donors:] if item[0] != self.state]
+
+            states += [self.state]
+            values += [out_dict[self.state]]
+
+            if not ax:
+                fig, ax = plt.subplots(figsize=(16,6))
             #ax.barh(self.state, out_dict[self.state])
-            ax.barh(states,values)
-            ax.set_xlabel('RI Score')
+            bar_list = ax.barh(states,values)
+            bar_list[-1].set_color('r')
+            ax.set_label('RI Score')
             ax.set_title('Permutation distribution graph for %s'%(self.state) )
             for i, v in enumerate(values):
-                ax.text(v, i - 0.15, "%3g" % v)
+                ax.text(v, i - 0.15, "%2g" % v)
         
         return out_dict
 
