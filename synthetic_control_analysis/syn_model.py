@@ -203,7 +203,7 @@ class syn_model(RobustSyntheticControl):
             ax.set_label('RI Score')
             ax.set_title('Permutation distribution graph for %s'%(self.state) )
             for i, v in enumerate(values):
-                ax.text(v, i - 0.15, "%2g" % v)
+                ax.text(v, i - 0.15, "%2g" % v, fontsize=12)
         
         return out_dict
 
