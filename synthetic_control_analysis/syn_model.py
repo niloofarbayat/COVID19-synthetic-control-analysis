@@ -109,8 +109,6 @@ class syn_model(RobustSyntheticControl):
         else:
             data = self.train
 
-
-
         predictions = np.dot(data[self.donors].fillna(0).values, self.model.weights)
         if force_positive:
             predictions[predictions < 0 ] = 0
@@ -209,7 +207,7 @@ class syn_model(RobustSyntheticControl):
 
 
     def plot(self, figure = None, axes = [], title_text = None, ylimit = None, xlimit = None, logy = False, 
-                        show_donors = False, tick_spacing=30, yaxis = 'Cases', intervention_date_x_ticks = None, fontsize = 20):
+                        show_donors = False, donors_num = None, tick_spacing=30, yaxis = 'Cases', intervention_date_x_ticks = None, fontsize = 20):
 
         '''
         Plot the diagram for the model based on its prediction and model fit. 
@@ -225,7 +223,8 @@ class syn_model(RobustSyntheticControl):
         tick_spacing: the spacing in x-axis
         yaxis: the name of the yaxis
         intervention_date_x_ticks: if we want to include the date for the low_thresh in the graph
-        fontsize = the fontsize of the text and label in the graph
+        fontsize: the fontsize of the text and label in the graph
+        donors_num:  number of states that will be included in the donor plot.
         '''
         if len(axes) == 0:
             if show_donors:
@@ -236,8 +235,11 @@ class syn_model(RobustSyntheticControl):
 
 
         if show_donors:
-            print(len(self.donors), len(self.model.weights))
-            axes[0].barh(self.donors, self.model.weights/np.max(self.model.weights), color=list('rgbkymc'))
+            if not donors_num:
+                donors_num = len(self.donors)
+            index = np.argsort(np.abs(self.model.weights))[-donors_num:]
+
+            axes[0].barh(np.array(self.donors)[index], (self.model.weights/np.max(self.model.weights))[index], color=list('rgbkymc'))
             axes[0].set_title("Normalized weights for "+str(self.state).replace("-None",""), fontsize=fontsize)
             axes[0].tick_params(axis='both', which='major', labelsize=fontsize)
 
