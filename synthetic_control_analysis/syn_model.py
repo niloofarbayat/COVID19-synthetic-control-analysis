@@ -8,10 +8,6 @@ import matplotlib.ticker as ticker
 import random
 import matplotlib.colors as mcolors
 
-    
-def mse(y_actual, y_pred):
-    return np.sum((y_actual - y_pred) ** 2) / len(y_actual)/np.sqrt(np.square(y_actual).sum())
-
 class syn_model(RobustSyntheticControl):
 
 
@@ -89,8 +85,8 @@ class syn_model(RobustSyntheticControl):
 
         self.predictions = self.model_predict()
         self.model_fit = self.model_predict(test = False)
-        self.train_err = self.training_error(metrics = mse)
-        self.test_err = self.testing_error(metrics = mse)
+        self.train_err = self.training_error()
+        self.test_err = self.testing_error()
 
         if return_denoise:
             return denoisedDF
@@ -116,7 +112,7 @@ class syn_model(RobustSyntheticControl):
         return predictions
 
 
-    def training_error(self, metrics = mse):
+    def training_error(self, metrics = mean_squared_error):
 
         '''
         Find the training error. The metrics is defauted to be mean square error. 
@@ -124,7 +120,7 @@ class syn_model(RobustSyntheticControl):
 
         return metrics(self.actual[:self.low_thresh], self.model_fit)
 
-    def testing_error(self, metrics = mse):
+    def testing_error(self, metrics = mean_squared_error):
         '''
         Find the testing error. The metrics is defauted to be mean square error. 
         '''
