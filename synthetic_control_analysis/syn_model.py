@@ -217,7 +217,7 @@ class syn_model(RobustSyntheticControl):
 
 
     def plot(self, figure = None, axes = [], title_text = None, ylimit = None, xlimit = None, logy = False, 
-                        show_donors = False, donors_num = None, tick_spacing=30, yaxis = 'Cases', intervention_date_x_ticks = None, fontsize = 20):
+                        show_donors = False, donors_num = None, tick_spacing=30, yaxis = 'Cases', intervention_date_x_ticks = None, fontsize = 12):
 
         '''
         Plot the diagram for the model based on its prediction and model fit. 
@@ -274,6 +274,8 @@ class syn_model(RobustSyntheticControl):
         ax.set_ylabel(yaxis, fontsize=fontsize)
         ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=fontsize)
         figure.canvas.draw()
+        labels = [item.get_text() for item in ax.get_xticklabels()]
+        ax.set_xticklabels(labels, rotation=20)
   
         if intervention_date_x_ticks:
             labels = [item.get_text() for item in ax.get_xticklabels()]
