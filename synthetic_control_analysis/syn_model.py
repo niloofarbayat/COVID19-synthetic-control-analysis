@@ -134,7 +134,7 @@ class syn_model(RobustSyntheticControl):
         '''
         return dict(zip(self.donors, self.model.weights))
 
-    def svd_spectrum(self, fontsize = 20):
+    def svd_spectrum(self, show_plot = False, fontsize = 20):
 
         '''
         Plot the svd_specturm of the model
@@ -149,6 +149,8 @@ class syn_model(RobustSyntheticControl):
         plt.ylabel("Energy", fontsize=fontsize)
         plt.title("Singular Value Spectrum", fontsize=fontsize)
         plt.show()
+
+        return U, s, Vh
 
     def find_ri(self, metrics = mean_squared_error):
         '''
