@@ -156,7 +156,7 @@ class syn_model(RobustSyntheticControl):
         '''
         return self.testing_error(metrics)/self.training_error(metrics)
 
-    def permutation_distribution(self, show_graph = True, show_donors = 10, ax = None):
+    def permutation_distribution(self, show_graph = True, show_donors = 10, ax = None, plot_models=0):
         '''
         Find the premutation_distribution for the states with all it donors
 
@@ -165,12 +165,14 @@ class syn_model(RobustSyntheticControl):
         show_donors: number of donors that will be shown in the graph, from large to small. 
                       Could be 'All' if you want to include all the donors. 
         xes: plt axes object for ploting. Use if you define external plt subplot
+        plot_models: number of highest-r_i permutation distribution models to plot
         '''
 
         if show_donors == 'All':
             show_donors = len(self.donors) + 1
 
         out_dict = dict()
+        models = dict()
         
         out_dict[self.state] = self.find_ri()
         
@@ -180,9 +182,11 @@ class syn_model(RobustSyntheticControl):
             temp_model = syn_model(donor, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
             temp_model.fit_model()
+            
             out_dict[donor] = temp_model.find_ri()
+            models[donor] = temp_model
+        sorted_dict = sorted(out_dict.items(), key=lambda item: item[1])
         if show_graph:
-            sorted_dict = sorted(out_dict.items(), key=lambda item: item[1])
             states = [item[0] for item in sorted_dict[-show_donors:] if item[0] != self.state]
             values = [item[1] for item in sorted_dict[-show_donors:] if item[0] != self.state]
 
@@ -198,6 +202,16 @@ class syn_model(RobustSyntheticControl):
             ax.set_title('Permutation distribution graph for %s'%(self.state) )
             for i, v in enumerate(values):
                 ax.text(v, i - 0.15, "%2g" % v, fontsize=12)
+        
+        if plot_models:
+            l = [e[0] for e in sorted_dict if e[0] != self.state]
+            l.reverse()
+            fig, axes = plt.subplots(plot_models, 1, figsize=(15,10*plot_models))
+            self.plot(figure=fig, axes=[axes[0]])
+            axes[0].set_title(self.state)
+            for i in range(1, plot_models):
+                models[l[i - 1]].plot(figure=fig, axes=[axes[i]])
+                axes[i].set_title(l[i])
         
         return out_dict
 
