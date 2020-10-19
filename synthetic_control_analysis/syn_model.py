@@ -46,6 +46,7 @@ class syn_model(RobustSyntheticControl):
         self.model_fit = None
         self.train_err = None
         self.test_err = None
+        self.denoisedDF = None
 
 
     def __split_data(self):
@@ -75,7 +76,7 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, return_denoise = False):
+    def fit_model(self):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
@@ -87,9 +88,8 @@ class syn_model(RobustSyntheticControl):
         self.model_fit = self.model_predict(test = False)
         self.train_err = self.training_error()
         self.test_err = self.testing_error()
+        self.denoisedDF = denoisedDF
 
-        if return_denoise:
-            return denoisedDF
 
     def model_predict(self, test = True, force_positive = True):
 
@@ -218,7 +218,7 @@ class syn_model(RobustSyntheticControl):
         return out_dict
 
 
-    def plot(self, figure = None, axes = [], title_text = None, ylimit = None, xlimit = None, logy = False, 
+    def plot(self, figure = None, axes = [], show_denoise = False, title_text = None, ylimit = None, xlimit = None, logy = False, 
                         show_donors = False, donors_num = None, tick_spacing=30, yaxis = 'Cases', intervention_date_x_ticks = None, fontsize = 12):
 
         '''
@@ -262,9 +262,11 @@ class syn_model(RobustSyntheticControl):
             ax.set_xlim(xlimit)
         if(logy):
             ax.set_yscale('log')
-        ax.plot(self.actual.index, self.actual, label='Actuals', color='k', linestyle='-')
+        ax.plot(self.actual.index, self.actual, label='Actuals', color='k', linestyle='-', alpha = 0.7)
         ax.plot(self.test.index, self.predictions, label='Predictions', color='r', linestyle='--')
         ax.plot(self.train.index, self.model_fit, label = 'Fitted model', color='g', linestyle=':')
+        if show_denoise:
+            ax.plot(self.denoisedDF.index, self.denoisedDF[self.state], label = 'Denoised Model', color='purple', linestyle='-.')
         ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
 
         ax.axvline(x = self.dfs[0].index[self.low_thresh-1], color='k', linestyle='--', linewidth=4)
@@ -274,7 +276,7 @@ class syn_model(RobustSyntheticControl):
             ax.set_title(title_text+" for "+str(self.state).replace("-None",""), fontsize=fontsize)
         ax.set_xlabel("Days since intervention", fontsize=fontsize)
         ax.set_ylabel(yaxis, fontsize=fontsize)
-        ax.legend(['Actuals', 'Predictions', 'Fitted Model'], fontsize=fontsize)
+        ax.legend(fontsize=fontsize)
         figure.canvas.draw()
         labels = [item.get_text() for item in ax.get_xticklabels()]
         ax.set_xticklabels(labels, rotation=20)
