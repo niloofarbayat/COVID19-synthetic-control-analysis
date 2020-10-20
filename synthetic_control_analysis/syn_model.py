@@ -238,7 +238,14 @@ class syn_model(RobustSyntheticControl):
         fontsize: the fontsize of the text and label in the graph
         donors_num:  number of states that will be included in the donor plot.
         '''
-        if len(axes) == 0:
+        
+        try:
+            axesLength = len(axes)
+        except TypeError:
+            axesLength = 1
+            axes = [axes]
+        
+        if axesLength:
             if show_donors:
                 figure, axes = plt.subplots(1, 2, figsize=(16,6))
             else:
