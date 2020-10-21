@@ -245,7 +245,7 @@ class syn_model(RobustSyntheticControl):
             axesLength = 1
             axes = [axes]
         
-        if axesLength:
+        if axesLength==0:
             if show_donors:
                 figure, axes = plt.subplots(1, 2, figsize=(16,6))
             else:
