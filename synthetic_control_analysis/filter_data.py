@@ -260,18 +260,19 @@ def cluster_trend(list_of_dfs, delta, low_thresh, targets, singVals=2,
 def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, singVals=2, 
                                savePlots=False, ylimit=[],xlimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, 
-                               animation=[], figure=None, axes=None,donorPool=[], silent=True, 
+                               animation=[], figure=None, axes=[],donorPool=[], silent=True, 
                                showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, 
                                yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, 
                                check_nan=0, return_permutation_distribution=False, intervention_date_x_ticks = None):
     
     df = list_of_dfs[0]
-    sizes = df.reset_index().apply(pd.Series.last_valid_index)
+    sizes = df.reset_index(drop=True).apply(pd.Series.last_valid_index)
     sizes = sizes.fillna(0).astype(int)
 
     otherStates = donorPool.copy() if donorPool else list(sizes[sizes>threshold].index)
     otherStates = list(set(otherStates).difference(set(exclude).union(set(do_only))))
     prediction_states = do_only if do_only else list(sizes[(sizes>low_thresh) & (sizes<=threshold)].index)
+    
     
     if check_nan:
 

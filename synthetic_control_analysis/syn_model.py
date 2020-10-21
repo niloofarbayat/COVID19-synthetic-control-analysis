@@ -262,6 +262,7 @@ class syn_model(RobustSyntheticControl):
             axes[0].set_title("Normalized weights for "+str(self.state).replace("-None",""), fontsize=fontsize)
             axes[0].tick_params(axis='both', which='major', labelsize=fontsize)
 
+
         ax = axes[-1] if show_donors else axes[0]
         if(ylimit):
             ax.set_ylim(ylimit)
