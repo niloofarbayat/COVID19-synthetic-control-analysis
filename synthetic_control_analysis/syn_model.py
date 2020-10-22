@@ -76,7 +76,7 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self):
+    def fit_model(self, force_positive=True):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
@@ -84,8 +84,8 @@ class syn_model(RobustSyntheticControl):
         self.fit(self.train)
         denoisedDF = self.model.denoisedDF()
 
-        self.predictions = self.model_predict()
-        self.model_fit = self.model_predict(test = False)
+        self.predictions = self.model_predict(force_positive=force_positive)
+        self.model_fit = self.model_predict(test = False, force_positive=force_positive)
         self.train_err = self.training_error()
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
@@ -183,7 +183,7 @@ class syn_model(RobustSyntheticControl):
             donorPool.remove(donor)
             temp_model = syn_model(donor, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
-            temp_model.fit_model()
+            temp_model.fit_model(force_positive=False)
             
             out_dict[donor] = temp_model.find_ri()
             models[donor] = temp_model
