@@ -300,7 +300,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             rscModel.svd_spectrum()
         
         if showPlots:
-            rscModel.plot(figure=figure, axes=axes, title_text=title_text, ylimit=ylimit, xlimit=xlimit, logy=logy, show_donors=showDonors, tick_spacing=tick_spacing, yaxis=yaxis, intervention_date_x_ticks=intervention_date_x_ticks)
+            rscModel.plot(figure=figure, axes=axes, title_text=title_text, ylimit=ylimit, xlimit=xlimit, logy=logy, show_donors=showDonors, tick_spacing=tick_spacing, yaxis=yaxis, intervention_date_x_ticks=intervention_date_x_ticks, fontsize = FONTSIZE)
             
             if savePlots:
                 plt.savefig("../Figures/COVID/"+state+'.pdf',bbox_inches='tight')    
