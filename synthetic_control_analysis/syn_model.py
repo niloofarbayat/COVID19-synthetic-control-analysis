@@ -158,7 +158,7 @@ class syn_model(RobustSyntheticControl):
         '''
         return self.testing_error(metrics)/self.training_error(metrics)
 
-    def permutation_distribution(self, show_graph = True, show_donors = 10, ax = None, plot_models=0):
+    def permutation_distribution(self, show_graph = True, show_donors = 10, ax = None, plot_models=0, metric=mean_squared_error):
         '''
         Find the premutation_distribution for the states with all it donors
 
@@ -168,6 +168,7 @@ class syn_model(RobustSyntheticControl):
                       Could be 'All' if you want to include all the donors. 
         xes: plt axes object for ploting. Use if you define external plt subplot
         plot_models: number of highest-r_i permutation distribution models to plot
+        metric: metric used to calculate ri values
         '''
 
         if show_donors == 'All':
@@ -176,7 +177,7 @@ class syn_model(RobustSyntheticControl):
         out_dict = dict()
         models = dict()
         
-        out_dict[self.state] = self.find_ri()
+        out_dict[self.state] = self.find_ri(metric)
         
         for donor in self.donors:
             donorPool = self.donors.copy()
@@ -185,8 +186,19 @@ class syn_model(RobustSyntheticControl):
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
             temp_model.fit_model(force_positive=False)
             
-            out_dict[donor] = temp_model.find_ri()
+            out_dict[donor] = temp_model.find_ri(metric)
             models[donor] = temp_model
+           
+        
+        '''
+        # possible bug:
+        # models are predicting almost the same values, up to a scale factor, uncomment to see mean and stdev
+        for i in models.values():
+            for j in models.values():
+                a = np.append(i.model_fit, i.predictions) / np.append(j.model_fit, j.predictions)
+                print("mean: ", np.mean(a), "stdev: ", np.std(a))
+        '''
+        
         sorted_dict = sorted(out_dict.items(), key=lambda item: item[1])
         if show_graph:
             states = [item[0] for item in sorted_dict[-show_donors:] if item[0] != self.state]
@@ -213,7 +225,7 @@ class syn_model(RobustSyntheticControl):
             axes[0].set_title(self.state)
             for i in range(1, plot_models):
                 models[l[i - 1]].plot(figure=fig, axes=[axes[i]])
-                axes[i].set_title(l[i])
+                axes[i].set_title(l[i - 1])
         
         return out_dict
 
