@@ -231,7 +231,7 @@ class syn_model(RobustSyntheticControl):
 
 
     def plot(self, figure = None, axes = [], show_denoise = False, title_text = None, ylimit = None, xlimit = None, logy = False, 
-                        show_donors = False, donors_num = None, tick_spacing=30, yaxis = 'Cases', intervention_date_x_ticks = None, fontsize = 12):
+                        show_donors = False, donors_num = None, tick_spacing=30, yaxis = 'Cases', xaxis = 'Date', intervention_date_x_ticks = None, fontsize = 12):
 
         '''
         Plot the diagram for the model based on its prediction and model fit. 
@@ -294,7 +294,7 @@ class syn_model(RobustSyntheticControl):
         ax.tick_params(axis='both', which='major', labelsize=fontsize)
         if title_text:
             ax.set_title(title_text+" for "+str(self.state).replace("-None",""), fontsize=fontsize)
-        ax.set_xlabel("Days since intervention", fontsize=fontsize)
+        ax.set_xlabel(xaxis, fontsize=fontsize)
         ax.set_ylabel(yaxis, fontsize=fontsize)
         ax.legend(fontsize=fontsize)
         figure.canvas.draw()
@@ -308,6 +308,5 @@ class syn_model(RobustSyntheticControl):
             for label in labels:
                 tmp_date = ts + datetime.timedelta(days = int(label))
                 x_labels.append(tmp_date.strftime('%Y-%m-%d'))
-            ax.set_xlabel("Date", fontsize=fontsize)
 
             ax.set_xticklabels(x_labels, rotation=45)
