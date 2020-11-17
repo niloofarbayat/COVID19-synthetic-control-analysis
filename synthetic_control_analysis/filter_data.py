@@ -40,8 +40,15 @@ def create_rolling_data(df, rolling_average_duration = 7, force_monotonicity=Tru
     return out
 
 #functions to summarized the intervention table based on the given intervention, the output will be used in filter_data_by_intervention
-def create_population_adjusted_data(df, population, show_exception = False, county = False):
+def create_population_adjusted_data(df, population, show_exception = False, county = False, fast=False):
 
+    if fast:
+        slash = set(df.columns) - set(population.index)
+        print('These countries/region do not have population data: ', slash)
+        
+        cap = df.columns & population.index
+        return 1000000 * df[cap] / pd.Series(population["value"][cap])
+    
     new_df = pd.DataFrame()
     # country_total = {}
     exception_list = []
@@ -293,8 +300,8 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
                                 random_distribution = random_distribution, lambdas = lambdas, mRSC = mRSC, otherStates=otherStates)
         rscModel.fit_model()
 
-        if rscModel.train_err > error_thresh:
-            print(state, rscModel.train_err)
+        if rscModel.training_error(mse) > error_thresh:
+            print(state, rscModel.training_error(mse))
             continue
         if svdSpectrum:
             rscModel.svd_spectrum()
