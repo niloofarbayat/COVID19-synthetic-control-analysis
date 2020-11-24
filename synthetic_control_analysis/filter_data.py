@@ -43,11 +43,22 @@ def create_rolling_data(df, rolling_average_duration = 7, force_monotonicity=Tru
 def create_population_adjusted_data(df, population, show_exception = False, county = False, fast=False):
 
     if fast:
-        slash = set(df.columns) - set(population.index)
-        print('These countries/region do not have population data: ', slash)
+        pop = set(population.index)
+        slash = set(df.columns) - pop
         
-        cap = df.columns & population.index
-        return 1000000 * df[cap] / pd.Series(population["value"][cap])
+        cap = df.columns & pop
+        
+        df2 = df[(str for str in df.columns if '-' in str)]
+        d = dict(map(lambda l: (l[1], l[0] + '-' + l[1]), (str.split('-') for str in df2.columns)))
+        df2.columns = (str.split('-')[1] for str in df2.columns)
+        cap2 = df2.columns & pop
+        df2 = df2[cap2]
+        df2 = 1000000 * df2 / pd.Series(population["value"][cap2])
+        df2.columns = map(d.get, df2.columns)
+        
+        print('These countries/region do not have population data: ', slash - set(df2.columns))
+        
+        return df2.join(1000000 * df[cap] / pd.Series(population["value"][cap]))
     
     new_df = pd.DataFrame()
     # country_total = {}
