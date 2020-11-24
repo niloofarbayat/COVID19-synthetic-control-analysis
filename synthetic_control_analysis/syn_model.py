@@ -40,13 +40,13 @@ class syn_model(RobustSyntheticControl):
         self.mRSC = mRSC
         self.lambdas = lambdas.copy()
         self.random_distribution = random_distribution
-        self.train, self.test = self.__split_data() 
         self.actual = self.dfs[0][state]
         self.predictions = None
         self.model_fit = None
         self.train_err = None
         self.test_err = None
         self.denoisedDF = None
+        self.train, self.test = self.__split_data()
 
 
     def __split_data(self):
@@ -55,6 +55,7 @@ class syn_model(RobustSyntheticControl):
         '''
 
         all_rows = self.donors + [self.state]
+
         df = self.dfs[0][all_rows]
 
         if not self.mRSC:
@@ -76,12 +77,23 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, force_positive=True):
+    def fit_model(self, force_positive=True, filter_donor = False, singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
+        if singVals_estimate:
+            self.kSingularValues = self.estimate_singVal(method = 'default')
+            self.model.kSingularValues = self.kSingularValues
+
+        if filter_donor:
+            self.donors = self.filter_donor()
+            self.otherSeriesKeysArray = self.donors
+            self.model.otherSeriesKeysArray = self.donors
+            self.train, self.test = self.__split_data()
+
 
         self.fit(self.train)
+
         denoisedDF = self.model.denoisedDF()
 
         self.predictions = self.model_predict(force_positive=force_positive)
@@ -89,6 +101,41 @@ class syn_model(RobustSyntheticControl):
         self.train_err = self.training_error()
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
+
+    def filter_donor(self):
+        perm_dict = self.permutation_distribution(show_graph = False, include_self = False)
+        perm_tuple = perm_dict.items()
+
+        all_donors = np.array([item[0] for item in perm_tuple])
+        value = np.array([item[1] for item in perm_tuple])
+
+        std = np.std(value)
+        new_donor = all_donors[value < 1 + 2 * std]
+
+        return list(new_donor)
+
+    def estimate_singVal(self, method = 'default', p = 1):
+
+        if method == "default":
+
+            X = self.train
+            a = np.max(X, axis = 0)
+            b = np.min(X, axis = 0)
+            X = (X - (a + b)/2)/((b-a)/2)
+            mean = np.mean(X, axis = 1)
+            sigma = np.sum(np.square(X[self.state] - mean))/(len(X)-1)
+            #sigma = np.var(X[models[0][donor_idx][state_idx].state], ddof = 1)
+            s = np.linalg.svd(X)[1]
+            l = (2.1)* np.sqrt(len(s) * (sigma * p + p * (1-p)))
+            h = (3)* np.sqrt(len(s) * (sigma * p + p * (1-p)))
+
+            l = len(s[s > l])
+            h = len(s[s > h])
+
+
+            return max(l, h)
+
+
 
 
     def model_predict(self, test = True, force_positive = True):
@@ -142,13 +189,15 @@ class syn_model(RobustSyntheticControl):
 
         (U, s, Vh) = np.linalg.svd((self.train) - np.mean(self.train))
         s2 = np.power(s, 2)
-        plt.figure(figsize=(8,6))
-        plt.plot(s2)
-        plt.grid()
-        plt.xlabel("Ordered Singular Values", fontsize=fontsize) 
-        plt.ylabel("Energy", fontsize=fontsize)
-        plt.title("Singular Value Spectrum", fontsize=fontsize)
-        plt.show()
+
+        if show_plot:
+            plt.figure(figsize=(8,6))
+            plt.plot(s2)
+            plt.grid()
+            plt.xlabel("Ordered Singular Values", fontsize=fontsize) 
+            plt.ylabel("Energy", fontsize=fontsize)
+            plt.title("Singular Value Spectrum", fontsize=fontsize)
+            plt.show()
 
         return U, s, Vh
 
@@ -158,7 +207,7 @@ class syn_model(RobustSyntheticControl):
         '''
         return self.testing_error(metrics)/self.training_error(metrics)
 
-    def permutation_distribution(self, show_graph = True, show_donors = 10, ax = None, plot_models=0, metric=mean_squared_error):
+    def permutation_distribution(self, show_graph = True, include_self = True, show_donors = 10, ax = None, plot_models=0, metric=mean_squared_error):
         '''
         Find the premutation_distribution for the states with all it donors
 
@@ -171,13 +220,13 @@ class syn_model(RobustSyntheticControl):
         metric: metric used to calculate ri values
         '''
 
-        if show_donors == 'All':
-            show_donors = len(self.donors) + 1
 
         out_dict = dict()
         models = dict()
+
+        if include_self:
         
-        out_dict[self.state] = self.find_ri(metric)
+            out_dict[self.state] = self.find_ri(metric)
         
         for donor in self.donors:
             donorPool = self.donors.copy()
@@ -198,7 +247,8 @@ class syn_model(RobustSyntheticControl):
                 a = np.append(i.model_fit, i.predictions) / np.append(j.model_fit, j.predictions)
                 print("mean: ", np.mean(a), "stdev: ", np.std(a))
         '''
-        
+        if show_donors == 'All':
+            show_donors = len(out_dict.keys())
         sorted_dict = sorted(out_dict.items(), key=lambda item: item[1])
         if show_graph:
             states = [item[0] for item in sorted_dict[-show_donors:] if item[0] != self.state]
