@@ -133,7 +133,7 @@ class syn_model(RobustSyntheticControl):
             h = len(s[s > h])
 
 
-            return max(l, h)
+            return (l + h) // 2
 
 
 
