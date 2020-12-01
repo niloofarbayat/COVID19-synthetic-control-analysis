@@ -77,19 +77,20 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, force_positive=True, filter_donor = False, singVals_estimate = False):
+    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'bin', singval_mathod = 'default', singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
         if singVals_estimate:
-            self.kSingularValues = self.estimate_singVal(method = 'default')
+            self.kSingularValues = self.estimate_singVal(method = singval_mathod)
             self.model.kSingularValues = self.kSingularValues
 
         if filter_donor:
-            self.donors = self.filter_donor()
+            self.donors = self.filter_donor(method = filter_method)[0]
             self.otherSeriesKeysArray = self.donors
             self.model.otherSeriesKeysArray = self.donors
             self.train, self.test = self.__split_data()
+
 
 
         self.fit(self.train)
@@ -102,17 +103,32 @@ class syn_model(RobustSyntheticControl):
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
 
-    def filter_donor(self):
+    def filter_donor(self, method = 'bin'):
         perm_dict = self.permutation_distribution(show_graph = False, include_self = False)
-        perm_tuple = perm_dict.items()
 
-        all_donors = np.array([item[0] for item in perm_tuple])
-        value = np.array([item[1] for item in perm_tuple])
+        all_donors = np.array(list(perm_dict.keys()))
+        values = np.array(list(perm_dict.values()))
 
-        std = np.std(value)
-        new_donor = all_donors[value < 1 + 2 * std]
+        if method == 'std':
 
-        return list(new_donor)
+            std = np.std(values)
+            c = 1 + 2 * std
+
+        if method == 'bin':
+            c = np.histogram(values[values < np.finfo(np.float64).max], bins=10)[1][1]
+
+        if method == 'combine':
+            c = np.histogram(values[values < np.finfo(np.float64).max], bins=10)[1][1]
+            all_donors = all_donors[values < c]
+            values = values[values < c]
+
+            std = np.std(values)
+            c = 1 + 2 * std
+
+
+        new_donor = all_donors[values < c]
+
+        return list(new_donor), c
 
     def estimate_singVal(self, method = 'default', p = 1):
 
