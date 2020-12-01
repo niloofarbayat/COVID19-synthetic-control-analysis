@@ -53,9 +53,7 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
         df2.columns = (str.split('-')[0] for str in df2.columns)
         df2 = df2.loc[:,~df2.columns.duplicated()]
         cap2 = df2.columns & pop
-        print(df2)
         df2 = df2[cap2]
-        print(df2)
         df2 = 1000000 * df2 / pd.Series(population["value"][cap2])
         df2.columns = map(d.get, df2.columns)
         
