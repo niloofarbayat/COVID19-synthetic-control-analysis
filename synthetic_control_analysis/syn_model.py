@@ -7,6 +7,7 @@ from sklearn.metrics import mean_squared_error
 import matplotlib.ticker as ticker
 import random
 import matplotlib.colors as mcolors
+from sklearn import linear_model
 
 class syn_model(RobustSyntheticControl):
 
@@ -87,6 +88,9 @@ class syn_model(RobustSyntheticControl):
 
         if filter_donor:
             self.donors = self.filter_donor(method = filter_method)[0]
+
+            if len(self.donors) == 0:
+                raise ValueError("Donor pool size 0")
             self.otherSeriesKeysArray = self.donors
             self.model.otherSeriesKeysArray = self.donors
             self.train, self.test = self.__split_data()
@@ -113,9 +117,13 @@ class syn_model(RobustSyntheticControl):
 
             std = np.std(values)
             c = 1 + 2 * std
+            new_donors = all_donors[values < c]
+            new_values = values[values < c]
 
         if method == 'bin':
             c = np.histogram(values[values < np.finfo(np.float64).max], bins=10)[1][1]
+            new_donors = all_donors[values < c]
+            new_values = values[values < c]
 
         if method == 'combine':
             c = np.histogram(values[values < np.finfo(np.float64).max], bins=10)[1][1]
@@ -124,15 +132,24 @@ class syn_model(RobustSyntheticControl):
 
             std = np.std(values)
             c = 1 + 2 * std
+            new_donors = all_donors[values < c]
+            new_values = values[values < c]
 
+        if method == 'lasso':
+            eps = 1e-4
+            clf = linear_model.Lasso(alpha=0.05, normalize = True)
+            clf.fit(self.train[self.donors],self.train[self.state])
+            new_donors = all_donors[clf.coef_ > eps]
+            new_values = values[clf.coef_ > eps]
+       
 
-        new_donor = all_donors[values < c]
-
-        return list(new_donor), c
+        return list(new_donors), list(new_values)
 
     def estimate_singVal(self, method = 'default', p = 1):
 
         if method == "default":
+
+        
 
             X = self.train
             a = np.max(X, axis = 0)
@@ -270,8 +287,10 @@ class syn_model(RobustSyntheticControl):
             states = [item[0] for item in sorted_dict[-show_donors:] if item[0] != self.state]
             values = [item[1] for item in sorted_dict[-show_donors:] if item[0] != self.state]
 
-            states += [self.state]
-            values += [out_dict[self.state]]
+            if include_self:
+
+                states += [self.state]
+                values += [out_dict[self.state]]
 
             if not ax:
                 fig, ax = plt.subplots(figsize=(16,6))
