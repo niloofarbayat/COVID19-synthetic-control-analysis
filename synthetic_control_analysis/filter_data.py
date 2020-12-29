@@ -10,7 +10,7 @@ from sklearn.cluster import KMeans, AgglomerativeClustering, AffinityPropagation
 from sklearn.mixture import GaussianMixture #For GMM clustering
 from sklearn.metrics import mean_squared_error
 import matplotlib.ticker as ticker
-from tslearn.clustering import TimeSeriesKMeans
+#from tslearn.clustering import TimeSeriesKMeans
 import random
 import matplotlib.colors as mcolors
 
@@ -57,7 +57,8 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
         df2 = 1000000 * df2 / pd.Series(population["value"][cap2])
         df2.columns = map(d.get, df2.columns)
         
-        print('These countries/region do not have population data: ', slash - set(df2.columns))
+        if show_exception:
+            print('These countries/region do not have population data: ', slash - set(df2.columns))
         
         return df2.join(1000000 * df[cap] / pd.Series(population["value"][cap]))
     
@@ -67,7 +68,7 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
     for state in df:
         try:
             new_df = pd.concat([new_df, 1000000 *df[state]/float(population.loc[state].value)], axis = 1, sort = True)
-        except:
+        except KeyError:
             if county:
                 exception_list.append(state)
                 continue 
@@ -83,12 +84,14 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
                 else:
 
                     if country_name not in df.columns:
-
+                        # so if there is no regional population data, but there is country population data,
+                        # there is nothing reported, even thought the country population data is not used
                         exception_list.append(state)
 
             else:
                 exception_list.append(state)
 
+    
     if show_exception:
 
         print('These countries/region do not have population data {}'.format(exception_list))
@@ -214,10 +217,10 @@ def cluster_time_series(time_series_data, cluster_method = 'HDBSCAN', metric = '
         feature_dict = features.groupby('cluster').groups
     if cluster_method == 'kmeans':
 
-        #kmeans = KMeans(n_clusters=n_clusters)
-        kmeans = TimeSeriesKMeans(n_clusters=n_clusters, metric=metric, max_iter=5,
-                          max_iter_barycenter=5,
-                          random_state=0)
+        #kmeans = TimeSeriesKMeans(n_clusters=n_clusters, metric=metric, max_iter=5,
+        #                  max_iter_barycenter=5,
+        #                  random_state=0)
+        kmeans = KMeans(n_clusters=n_clusters, n_init=1, max_iter=5, tol=1e-06, random_state=0) #metric is always euclidean
         y = kmeans.fit_predict(features)
         features['cluster']= y
         feature_dict = features.groupby('cluster').groups

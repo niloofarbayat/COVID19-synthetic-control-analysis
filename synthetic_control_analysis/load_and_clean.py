@@ -30,8 +30,8 @@ _apple_local_path = "../data/mobility/applemobilitytrends.csv"
 _IHME_web_path = None #TODO unimplemented, line 177
 _IHME_local_path = "../data/intervention/sdc_sources.csv"
 
-_country_pop_local_path = "../data/population/country_pop_WDI.xlsx"
-_county_pop_local_path = "../data/population/co-est2019-annres.xlsx"
+_country_pop_local_path = "../data/population/country_pop_WDI.csv"
+_county_pop_local_path = "../data/population/co-est2019-annres.csv"
 
 _state_reopen_local_path = "../data/intervention/state_reopen_data.csv"
 _temperature_local_path = "../data/temperature/temp_data.csv"
@@ -214,14 +214,19 @@ def _import_IHME_intervention():
 #Load and clean the population data
 def _import_population_data():
 
-
-    country_population = pd.read_excel(_country_pop_local_path)
-    county_population = pd.read_excel(_county_pop_local_path, header=[3], skipfooter=6)
+    country_population = pd.read_csv(_country_pop_local_path)
+    county_population = pd.read_csv(_county_pop_local_path, header=[3], skipfooter=6)
     new = county_population['Unnamed: 0'].str.strip(".").str.replace(" County","").str.split(pat=",", expand=True)
 
     county_population['county'] = new[0] +'-' + new[1].str.strip()
     county_population['state']=new[1].str.strip()
 
+    def toInt(s):
+        try: return int(s.replace(',',''))
+        except: return s
+    county_population.columns = county_population.columns.map(toInt)
+    county_population[2019] = county_population[2019].map(lambda x: int(x.replace(',','')))
+    
     county_population = county_population[['county', 2019, 'state']]
     state_population = county_population.groupby('state').sum()
     us_state_population = pd.DataFrame()
@@ -278,7 +283,7 @@ def _import_CTP_state():
     data.index = pd.to_datetime(data.index, format='%Y%m%d').strftime('%Y-%m-%d')
     data = data.iloc[-1::-1]
     # remove deprecated and redundant columns
-    stripped = data.drop(labels=['state', 'checkTimeEt', 'commercialScore', 'dataQualityGrade', 'dateChecked', 'dateModified', 'deathIncrease', 'grade', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastUpdateEt', 'negativeIncrease', 'negativeRegularScore', 'negativeScore', 'posNeg', 'positiveIncrease', 'positiveScore', 'score', 'total', 'totalTestResultsIncrease'], axis=1)
+    stripped = data.drop(labels=['state', 'checkTimeEt', 'commercialScore', 'dataQualityGrade', 'dateChecked', 'dateModified', 'deathIncrease', 'grade', 'hash', 'hospitalized', 'hospitalizedIncrease', 'lastUpdateEt', 'negativeIncrease', 'negativeRegularScore', 'negativeScore', 'posNeg', 'positiveIncrease', 'positiveScore', 'score', 'total', 'totalTestResultsIncrease', 'totalTestResultsSource'], axis=1)
     stats_dict = {stat: stripped.pivot(columns='fips', values=stat) for stat in stripped.columns if stat != 'fips'}
     # convert fips codes into state names
     fips = pd.read_csv(_JHU_local_path + "csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv").set_index('FIPS')
