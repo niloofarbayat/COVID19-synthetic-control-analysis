@@ -8,6 +8,7 @@ import matplotlib.ticker as ticker
 import random
 import matplotlib.colors as mcolors
 from sklearn import linear_model
+from rank_estimation import *
 
 class syn_model(RobustSyntheticControl):
 
@@ -147,11 +148,10 @@ class syn_model(RobustSyntheticControl):
 
     def estimate_singVal(self, method = 'default', p = 1):
 
-        if method == "default":
+        X = self.train
 
-        
+        if method == "mRSC":
 
-            X = self.train
             a = np.max(X, axis = 0)
             b = np.min(X, axis = 0)
             X = (X - (a + b)/2)/((b-a)/2)
@@ -167,6 +167,10 @@ class syn_model(RobustSyntheticControl):
 
 
             return (l + h) // 2
+
+        if method == "default":
+
+            return estimate_rank(np.array(X))
 
 
 
