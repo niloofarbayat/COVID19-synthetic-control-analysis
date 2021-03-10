@@ -16,10 +16,10 @@ def Chebyshev_vTAv(A, v, deg):
         if k == 0:
             scal = 1;
 
-        vkp1 = scal* (A @ vk) - vkm1;
-        vkm1 = vk; 
-        vk = vkp1;
-        y[k+1] = (v.T @ vk);
+        vkp1 = scal* (A @ vk) - vkm1
+        vkm1 = vk
+        vk = vkp1
+        y[k+1, 0] = (v.T @ vk)
         
     return y
 
@@ -242,7 +242,7 @@ def estimate_rank(X):
     lmax = d[-1] + 0.00001
 
     r,g,zz,z1,xx,yy = KPM_DOS_and_Rank(A,lmin,lmax,deg,nvecs,Npts,AutoGap)
-    return int(r[0])
+    return int(round(r[0]))
     #return np.sum(d > (g))
 
 

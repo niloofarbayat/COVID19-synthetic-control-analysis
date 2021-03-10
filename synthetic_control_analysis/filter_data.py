@@ -102,7 +102,8 @@ def create_population_adjusted_data(df, population, show_exception = False, coun
 
 def create_intervention_adjusted_data(df, intervention, rolling_average_duration, ignore_nan=False): 
     intervention_adjusted, intervention_dates = filter_data_by_intervention(df, intervention, ignore_nan=ignore_nan)
-    intervention_adjusted_daily = create_rolling_data(intervention_adjusted, rolling_average_duration)
+    temp = create_rolling_data(df, rolling_average_duration)
+    intervention_adjusted_daily, _ = filter_data_by_intervention(temp, intervention, ignore_nan=ignore_nan)
     #intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
     return intervention_adjusted, intervention_adjusted_daily, intervention_dates
 
@@ -322,7 +323,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
             rscModel.svd_spectrum()
         
         if showPlots:
-            rscModel.plot(figure=figure, axes=axes, title_text=title_text, ylimit=ylimit, xlimit=xlimit, logy=logy, show_donors=showDonors, tick_spacing=tick_spacing, yaxis=yaxis, intervention_date_x_ticks=intervention_date_x_ticks, fontsize = FONTSIZE)
+            rscModel.plot(figure=figure, axes=axes, title_text=title_text, ylimit=ylimit, xlimit=xlimit, logy=logy,show_legend = False, show_donors=showDonors, tick_spacing=tick_spacing, yaxis=yaxis, intervention_date_x_ticks=intervention_date_x_ticks, fontsize = FONTSIZE)
             
             if savePlots:
                 plt.savefig("../Figures/COVID/"+state+'.pdf',bbox_inches='tight')    

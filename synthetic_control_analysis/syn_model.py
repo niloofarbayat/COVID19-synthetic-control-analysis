@@ -166,7 +166,7 @@ class syn_model(RobustSyntheticControl):
             h = len(s[s > h])
 
 
-            return (l + h) // 2
+            return (h, l)
 
         if method == "default":
 
@@ -319,7 +319,7 @@ class syn_model(RobustSyntheticControl):
         return out_dict
 
 
-    def plot(self, figure = None, axes = [], show_denoise = False, title_text = None, ylimit = None, xlimit = None, logy = False, 
+    def plot(self, figure = None, axes = [], show_denoise = False, title_text = None, ylimit = None, xlimit = None, logy = False, show_legend = True,
                         show_donors = False, donors_num = None, tick_spacing=30, yaxis = 'Cases', xaxis = 'Date', intervention_date_x_ticks = None, fontsize = 12):
 
         '''
@@ -385,7 +385,8 @@ class syn_model(RobustSyntheticControl):
             ax.set_title(title_text+" for "+str(self.state).replace("-None",""), fontsize=fontsize)
         ax.set_xlabel(xaxis, fontsize=fontsize)
         ax.set_ylabel(yaxis, fontsize=fontsize)
-        ax.legend(fontsize=fontsize)
+        if show_legend:
+            ax.legend(fontsize=fontsize)
         figure.canvas.draw()
         labels = [item.get_text() for item in ax.get_xticklabels()]
         ax.set_xticklabels(labels, rotation=20)
