@@ -284,7 +284,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
                                savePlots=False, ylimit=[],xlimit=[], logy=False, exclude=[], 
                                svdSpectrum=False, showDonors=True, do_only=[], showstates=4, 
                                animation=[], figure=None, axes=[],donorPool=[], silent=True, 
-                               showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, 
+                               showPlots=True, mRSC=False, lambdas=[1], error_thresh=1, sing_estimate = False,filter_donor = False,
                                yaxis = 'Cases', FONTSIZE = 20, tick_spacing=30, random_distribution=None, 
                                check_nan=0, return_permutation_distribution=False, intervention_date_x_ticks = None):
     
@@ -314,7 +314,7 @@ def synth_control_predictions(list_of_dfs, threshold, low_thresh,  title_text, s
 
         rscModel = syn_model(state, singVals, list_of_dfs, threshold, low_thresh, 
                                 random_distribution = random_distribution, lambdas = lambdas, mRSC = mRSC, otherStates=otherStates)
-        rscModel.fit_model()
+        rscModel.fit_model(singVals_estimate = sing_estimate, filter_donor = filter_donor)
 
         if rscModel.training_error(mse) > error_thresh:
             print(state, rscModel.training_error(mse))
