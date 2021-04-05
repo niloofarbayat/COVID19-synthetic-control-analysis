@@ -6,6 +6,8 @@ import datetime
 from subprocess import Popen
 
 import time
+import json
+import urllib
 
 
 
@@ -27,7 +29,7 @@ _google_local_path = "../data/mobility/Global_Mobility_Report.csv"
 _apple_web_path = "https://covid19-static.cdn-apple.com/covid19-mobility-data/20%dHotfixDev%d/v3/en-us/applemobilitytrends-%s.csv"
 _apple_local_path = "../data/mobility/applemobilitytrends.csv"
 
-_IHME_web_path = None #TODO unimplemented, line 177
+_IHME_web_path = None
 _IHME_local_path = "../data/intervention/sdc_sources.csv"
 
 _country_pop_local_path = "../data/population/country_pop_WDI.csv"
@@ -41,6 +43,15 @@ _CTP_US_local_path = "../data/covid/CTP/country.csv"
 
 _CTP_state_web_path = "https://api.covidtracking.com/v1/states/daily.csv"
 _CTP_state_local_path = "../data/covid/CTP/state.csv"
+
+_israel_data_web_path = "https://data.gov.il/api/3/action/datastore_search?resource_id=d07c0771-01a8-43b2-96cc-c6154e7fa9bd&records_format=csv"
+_israel_data_local_path = "../data/israel/geographic-sum-per-day.csv"
+
+_israel_vaccinations_web_path = "https://data.gov.il/api/3/action/datastore_search?resource_id=12c9045c-1bf4-478a-a9e1-1e876cc2e182&records_format=csv"
+_israel_vaccinations_local_path = "../data/israel/vaccinated_city_table.csv"
+
+_israel_population_local_path = "../data/israel/israel_pop.xlsx"
+
 
 
 
@@ -291,8 +302,48 @@ def _import_CTP_state():
         df.columns = [fips.loc[fips_code]['Province_State'] for fips_code in df.columns]
     return stats_dict
 
+def __israel_pop():
+    df_byage = pd.read_csv(_israel_vaccinations_local_path)
+    df_all = pd.read_csv(_israel_data_local_path)
+    pop = pd.read_excel(_israel_population_local_path)
+    pop = pop.loc[pop["Locality Code"].isin(set(pd.unique(df_byage.CityCode)).union(df_all['town_code'])), ["Locality Code", "Total population"]]
+    pop.columns = ['code', 'population']
+    pop = pop.set_index('code').replace('-', np.nan)
+    pop = pop.dropna()
+    return pop
 
+def _import_israel_data():
+    df_all = pd.read_csv(_israel_data_local_path)
+    df_all = df_all.drop(["town"], axis = 1)
+    df_all = df_all.groupby(['date', 'town_code']).sum().reset_index().drop('agas_code', axis = 1).replace("<15", "7")
+    time_series = {}
+    time_series_pop = {}
+    pop = __israel_pop()
+    for col in df_all.columns[2:]:
+        time_series[col] = df_all.pivot(index = 'date', columns = 'town_code', values = col)
+        time_series_pop[col] = 1000000 * time_series[col]/pop.loc[time_series[col].columns].population
+    return time_series, time_series_pop
 
+def _import_israel_vaccinations():
+    df_byage = pd.read_csv(_israel_vaccinations_local_path)
+    df = df_byage.set_index(["Date", "CityCode"]).drop(["CityName"], axis = 1).stack().reset_index().replace("<15", "7")
+
+    df.columns = ['Date', 'CityCode', 'level_2', 'value']
+    df = df.pivot(index='Date', columns = ["level_2", "CityCode"], values='value').astype(float)
+    #df_flat = pd.DataFrame(df.to_records())
+    
+    pop = __israel_pop()
+    df_byage_pop = df_byage.merge(pop.reset_index(), left_on = 'CityCode', right_on = 'code')
+    df_byage_pop = df_byage_pop.set_index(["Date", "CityCode"]).drop(["CityName", "code"], axis = 1)
+    df_byage_pop = df_byage_pop.replace("<15", "7").astype(float)
+    df_byage_pop.iloc[:, :-1] = 100 * (df_byage_pop.iloc[:, :-1].values.T/df_byage_pop.iloc[:, -1].values).T
+
+    df_byage_pop = df_byage_pop.iloc[:, :-1].stack().reset_index()
+    df_byage_pop.columns = ['Date', 'CityCode', 'level_2', 'value']
+    df_byage_pop = df_byage_pop.pivot(index='Date', columns = ["level_2", "CityCode"], values='value').astype(float)
+
+    #df_byage_pop_flat = pd.DataFrame(df_byage_pop.to_records()).set_index("Date")
+    return df, df_byage_pop
 
 
 
@@ -436,6 +487,53 @@ def _update_CTP():
     return out
 
 
+def _update_israel():
+    data_hidden_path = "../data/israel/.geographic-sum-per-day.csv"
+    vaccinations_hidden_path = "../data/israel/.vaccinated_city_table.csv"
+
+    d1 = urllib.request.urlopen(_israel_data_web_path + "&limit=1000000")
+    d2 = json.loads(d1.read().decode('utf8'))["result"]
+    
+    with open(data_hidden_path, "w") as file:
+        file.write(",".join([a["id"] for a in d2["fields"]]) + "\n")
+        file.write(d2["records"] + "\n")
+
+    d3 = urllib.request.urlopen(_israel_vaccinations_web_path + "&limit=1000000")
+    d4 = json.loads(d3.read().decode('utf8'))["result"]
+    
+    with open(vaccinations_hidden_path, "w") as file:
+        file.write(",".join([a["id"] for a in d4["fields"]]) + "\n")
+        file.write(d4["records"] + "\n")
+        
+    os.system(powershell_path + "cp %s %s" % (data_hidden_path, _israel_data_local_path))
+    os.system(powershell_path + "cp %s %s" % (vaccinations_hidden_path, _israel_vaccinations_local_path))
+    
+    return 0
+    
+    '''
+    out = 0
+    
+    return_value_1 = os.system("curl -o %s -z %s %s" % (data_hidden_path, data_hidden_path, _israel_data_web_path))
+    if return_value_1 != 0:
+        print("Unable to update Israel town-level data (%d)" % return_value_1, file=sys.stderr)
+        out += 1
+    else:
+        return_value_copy_1 = os.system(powershell_path + "cp %s %s" % (data_hidden_path, _israel_data_local_path))
+        if return_value_copy_1 != 0:
+            print("Unable to update Israel town-level data (copy: %d)" % return_value_copy_1, file=sys.stderr)
+            out += 1
+    
+    return_value_2 = os.system("curl -o %s -z %s %s" % (vaccinations_hidden_path, vaccinations_hidden_path, _israel_vaccinations_web_path))
+    if return_value_2 != 0:
+        print("Unable to update Israel vaccination data (%d)" % return_value_2, file=sys.stderr)
+        out += 1
+    else:
+        return_value_copy_2 = os.system(powershell_path + "cp %s %s" % (vaccinations_hidden_path, _israel_vaccinations_local_path))
+        if return_value_copy_2 != 0:
+            print("Unable to update Israel vaccination data (copy: %d)" % return_value_copy_2, file=sys.stderr)
+            out += 1
+    '''
+
 
 
 
@@ -450,6 +548,7 @@ def _construct_file_hierarchy():
     _create_dir("../data/mobility")
     _create_dir("../data/population")
     _create_dir("../data/temperature")
+    _create_dir("../data/israel")
     
     _create_dir("../data/covid/CTP")
 
@@ -483,7 +582,9 @@ def load_clean(dataset):
                         'CTP US' : _import_CTP_US,
                         'CTP states' : _import_CTP_state,
                         'mobility Apple' : _import_mobility_apple,
-                        'mobility Google' : _import_mobility_google
+                        'mobility Google' : _import_mobility_google,
+                        'Israel geographic' : _import_israel_data,
+                        'Israel vaccinations' : _import_israel_vaccinations
     }
 
     return _import_function_dictionary[dataset]()
@@ -497,7 +598,8 @@ def update_data(dataset=None):
                                 'Google' : _update_google,
                                 'Apple' : _update_apple,
                                 'IHME' : _update_IHME,
-                                'CTP' : _update_CTP
+                                'CTP' : _update_CTP,
+                                'Israel' : _update_israel
     }
 
     _construct_file_hierarchy()
