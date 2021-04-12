@@ -7,7 +7,7 @@ from subprocess import Popen
 
 import time
 import json
-import urllib
+import urllib.request as url
 
 
 
@@ -487,52 +487,52 @@ def _update_CTP():
     return out
 
 
+# when I call this outside of Jupyter (with python 3.9.0), I get "module 'urllib' has no attribute 'request'"
+# but for some reason the 'request' attribute is needed when calling from Jupyter
 def _update_israel():
     data_hidden_path = "../data/israel/.geographic-sum-per-day.csv"
     vaccinations_hidden_path = "../data/israel/.vaccinated_city_table.csv"
 
-    d1 = urllib.request.urlopen(_israel_data_web_path + "&limit=1000000")
-    d2 = json.loads(d1.read().decode('utf8'))["result"]
-    
-    with open(data_hidden_path, "w") as file:
-        file.write(",".join([a["id"] for a in d2["fields"]]) + "\n")
-        file.write(d2["records"] + "\n")
+    if os.path.exists(data_hidden_path):
+        lines = pd.read_csv(data_hidden_path)["_id"].iloc[-1]
+        d1 = url.urlopen(_israel_data_web_path + "&limit=1000&offset=" + str(lines))
+        d2 = json.loads(d1.read().decode('utf8'))["result"]
 
-    d3 = urllib.request.urlopen(_israel_vaccinations_web_path + "&limit=1000000")
-    d4 = json.loads(d3.read().decode('utf8'))["result"]
+        with open(data_hidden_path, "a") as file:
+            file.write(d2["records"] + "\n")
+    else:
+        d1 = url.urlopen(_israel_data_web_path + "&limit=1000000")
+        d2 = json.loads(d1.read().decode('utf8'))["result"]
     
-    with open(vaccinations_hidden_path, "w") as file:
-        file.write(",".join([a["id"] for a in d4["fields"]]) + "\n")
-        file.write(d4["records"] + "\n")
+        with open(data_hidden_path, "w") as file:
+            file.write(",".join([a["id"] for a in d2["fields"]]) + "\n")
+            file.write(d2["records"] + "\n")
+
+
+    if os.path.exists(vaccinations_hidden_path):
+        lines = pd.read_csv(vaccinations_hidden_path)["_id"].iloc[-1]
+        d3 = url.urlopen(_israel_vaccinations_web_path + "&limit=1000&offset=" + str(lines))
+        d4 = json.loads(d3.read().decode('utf8'))["result"]
+
+        with open(vaccinations_hidden_path, "a") as file:
+            file.write(d4["records"] + "\n")
+    else:
+        d3 = url.urlopen(_israel_vaccinations_web_path + "&limit=1000000")
+        d4 = json.loads(d3.read().decode('utf8'))["result"]
+        
+        with open(vaccinations_hidden_path, "w") as file:
+            file.write(",".join([a["id"] for a in d4["fields"]]) + "\n")
+            file.write(d4["records"] + "\n")
+        
         
     os.system(powershell_path + "cp %s %s" % (data_hidden_path, _israel_data_local_path))
     os.system(powershell_path + "cp %s %s" % (vaccinations_hidden_path, _israel_vaccinations_local_path))
     
     return 0
     
-    '''
-    out = 0
-    
-    return_value_1 = os.system("curl -o %s -z %s %s" % (data_hidden_path, data_hidden_path, _israel_data_web_path))
-    if return_value_1 != 0:
-        print("Unable to update Israel town-level data (%d)" % return_value_1, file=sys.stderr)
-        out += 1
-    else:
-        return_value_copy_1 = os.system(powershell_path + "cp %s %s" % (data_hidden_path, _israel_data_local_path))
-        if return_value_copy_1 != 0:
-            print("Unable to update Israel town-level data (copy: %d)" % return_value_copy_1, file=sys.stderr)
-            out += 1
-    
-    return_value_2 = os.system("curl -o %s -z %s %s" % (vaccinations_hidden_path, vaccinations_hidden_path, _israel_vaccinations_web_path))
-    if return_value_2 != 0:
-        print("Unable to update Israel vaccination data (%d)" % return_value_2, file=sys.stderr)
-        out += 1
-    else:
-        return_value_copy_2 = os.system(powershell_path + "cp %s %s" % (vaccinations_hidden_path, _israel_vaccinations_local_path))
-        if return_value_copy_2 != 0:
-            print("Unable to update Israel vaccination data (copy: %d)" % return_value_copy_2, file=sys.stderr)
-            out += 1
-    '''
+
+
+
 
 
 
