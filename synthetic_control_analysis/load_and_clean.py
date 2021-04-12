@@ -498,13 +498,13 @@ def _update_israel():
         d1 = url.urlopen(_israel_data_web_path + "&limit=1000&offset=" + str(lines))
         d2 = json.loads(d1.read().decode('utf8'))["result"]
 
-        with open(data_hidden_path, "a") as file:
+        with open(data_hidden_path, "a", encoding='utf8') as file:
             file.write(d2["records"] + "\n")
     else:
         d1 = url.urlopen(_israel_data_web_path + "&limit=1000000")
         d2 = json.loads(d1.read().decode('utf8'))["result"]
     
-        with open(data_hidden_path, "w") as file:
+        with open(data_hidden_path, "w", encoding='utf8') as file:
             file.write(",".join([a["id"] for a in d2["fields"]]) + "\n")
             file.write(d2["records"] + "\n")
 
@@ -514,13 +514,13 @@ def _update_israel():
         d3 = url.urlopen(_israel_vaccinations_web_path + "&limit=1000&offset=" + str(lines))
         d4 = json.loads(d3.read().decode('utf8'))["result"]
 
-        with open(vaccinations_hidden_path, "a") as file:
+        with open(vaccinations_hidden_path, "a", encoding='utf8') as file:
             file.write(d4["records"] + "\n")
     else:
         d3 = url.urlopen(_israel_vaccinations_web_path + "&limit=1000000")
         d4 = json.loads(d3.read().decode('utf8'))["result"]
         
-        with open(vaccinations_hidden_path, "w") as file:
+        with open(vaccinations_hidden_path, "w", encoding='utf8') as file:
             file.write(",".join([a["id"] for a in d4["fields"]]) + "\n")
             file.write(d4["records"] + "\n")
         
