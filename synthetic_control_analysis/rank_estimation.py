@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 def Chebyshev_vTAv(A, v, deg):
     
@@ -56,6 +57,10 @@ def find_gap(xx, yy, n):
     ## spot first time yy becomes significant again
     tol  = (1 - ysum)*0.25
     indx2 = [];
+
+    print("ysum")
+
+    print(ysum, indx1)
     for i in range(indx1+1, npts):
         ## spot first time derivative becomes>0
         if yy[i] >= tol:
@@ -66,6 +71,9 @@ def find_gap(xx, yy, n):
         indx2=indx1+1
 
     gap = (xx[indx1]+xx[indx2])/2
+
+    print("indx1 indx2")
+    print(indx1, indx2, yy[indx1], yy[indx2], xx[indx1], xx[indx2])
     
     return gap
 
@@ -73,8 +81,9 @@ def kpmchebdos_new(Y, Npts, lm, lM, damping):
     ## To do
     h = 2/(Npts+1)
     eps = 2**(-52)
+    #eps = 2 ** (-20)
     
-    pts = np.concatenate((np.arange(-1+h, eps, h * 0.5), np.arange(h,1-h, 2*h)))
+    pts = np.concatenate((np.arange(-1+h, eps, h * 0.5), np.arange(h,1-h + eps, 2*h)))
 
     deg, nvec = Y.shape
     
@@ -90,18 +99,18 @@ def kpmchebdos_new(Y, Npts, lm, lM, damping):
         a1 = 1/(deg+2);
         a2 = np.sin(thetJ)
         
-    for k in range(deg):
-        if damping == 0:
-            jac = 1
-        elif damping  == 1:
-            # Note: slightly simpler formulas for jackson:
-            jac = a1*np.sin((k+1)*thetJ)/a2+(1-(k+1)*a1)*np.cos(k*thetJ);
-            # Lanczos sigma-damping:
-        elif damping == 2:
-            jac = 1
-            if k > 0:
-                jac = np.sin(k*thetL)/(k*thetL)
-        mu[k] = mu[k]+jac*(wk[k])
+        for k in range(deg):
+            if damping == 0:
+                jac = 1
+            elif damping  == 1:
+                # Note: slightly simpler formulas for jackson:
+                jac = a1*np.sin((k+1)*thetJ)/a2+(1-(k+1)*a1)*np.cos(k*thetJ);
+                # Lanczos sigma-damping:
+            elif damping == 2:
+                jac = 1
+                if k > 0:
+                    jac = np.sin(k*thetL)/(k*thetL)
+            mu[k] = mu[k]+jac*(wk[k])
 
 
     # Plot
@@ -192,10 +201,17 @@ def KPM_DOS_and_Rank(A,lmin,lmax,deg,nvecs,Npts,AutoGap):
     
     for i in range(nvecs):
         v = np.random.normal(size = (n, 1)) 
+        # v = np.random.rand(n, 1)
+        #v = np.ones((n, 1))
         v = v/np.linalg.norm(v, 2)
         z = Chebyshev_vTAv(B, v, deg)
         Y[:,i] = z.T
-    
+
+    #################Debug
+    # pd.DataFrame(Y).to_csv("../../Desktop/research/rank_estimation (1)/Y.csv")
+    # print(Y[50])
+    #Y = pd.read_csv("../../Desktop/research/rank_estimation (1)/Y.csv", index_col = 0).values
+    #################
     # Find DOS and Threshold
     
     if AutoGap:
@@ -216,9 +232,10 @@ def KPM_DOS_and_Rank(A,lmin,lmax,deg,nvecs,Npts,AutoGap):
     
 
     for l in range(nvecs):
-        vk = Y[:,l];
-        t = sum(mu * vk);
-        z1[l] = t*n;
+        vk = Y[:,l]
+        t = sum(mu * vk)
+        #print(t)
+        z1[l] = t*n
         cnt_est = (cnt_est+t)
         zz[l] = n*(cnt_est/(l+1))
     
@@ -228,7 +245,7 @@ def KPM_DOS_and_Rank(A,lmin,lmax,deg,nvecs,Npts,AutoGap):
 
 def estimate_rank(X):
     deg   = 100;
-    eps = 0.01;
+    eps = 0.001;
     nvecs = 30;
     AutoGap = 1;
     Npts = 100;
@@ -242,8 +259,10 @@ def estimate_rank(X):
     lmax = d[-1] + 0.00001
 
     r,g,zz,z1,xx,yy = KPM_DOS_and_Rank(A,lmin,lmax,deg,nvecs,Npts,AutoGap)
-    return int(round(r[0]))
-    #return np.sum(d > (g))
+    print(r, g)
+    #return int(round(r[0]))
+    # return r,g,zz,z1,xx,yy
+    return np.sum(d > (g))
 
 
 
