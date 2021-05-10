@@ -57,10 +57,10 @@ def find_gap(xx, yy, n):
     ## spot first time yy becomes significant again
     tol  = (1 - ysum)*0.25
     indx2 = [];
-
-    print("ysum")
-
-    print(ysum, indx1)
+    ###############Debug
+    # print("ysum")
+    # print(ysum, indx1)
+    ###############
     for i in range(indx1+1, npts):
         ## spot first time derivative becomes>0
         if yy[i] >= tol:
@@ -72,8 +72,12 @@ def find_gap(xx, yy, n):
 
     gap = (xx[indx1]+xx[indx2])/2
 
-    print("indx1 indx2")
-    print(indx1, indx2, yy[indx1], yy[indx2], xx[indx1], xx[indx2])
+    ##############Debug
+
+    # print("indx1 indx2")
+    # print(indx1, indx2, yy[indx1], yy[indx2], xx[indx1], xx[indx2])
+
+    ##############Debug
     
     return gap
 
@@ -132,7 +136,6 @@ def TcPlt(mu, xi):
     yi = np.zeros((n,1))
     vkm1 = np.zeros((n,1))
     vk   = np.ones((n,1))
-    #print((xi.reshape(-1, 1) * vk).shape)
     for k in range(m):
     # accumulation of vector.
         yi = yi + mu[k, 0] * vk
@@ -209,8 +212,7 @@ def KPM_DOS_and_Rank(A,lmin,lmax,deg,nvecs,Npts,AutoGap):
 
     #################Debug
     # pd.DataFrame(Y).to_csv("../../Desktop/research/rank_estimation (1)/Y.csv")
-    # print(Y[50])
-    #Y = pd.read_csv("../../Desktop/research/rank_estimation (1)/Y.csv", index_col = 0).values
+    # Y = pd.read_csv("../../Desktop/research/rank_estimation (1)/Y.csv", index_col = 0).values
     #################
     # Find DOS and Threshold
     
@@ -259,9 +261,9 @@ def estimate_rank(X):
     lmax = d[-1] + 0.00001
 
     r,g,zz,z1,xx,yy = KPM_DOS_and_Rank(A,lmin,lmax,deg,nvecs,Npts,AutoGap)
-    print(r, g)
-    #return int(round(r[0]))
+    ###########Debug
     # return r,g,zz,z1,xx,yy
+    ###########
     return np.sum(d > (g))
 
 
