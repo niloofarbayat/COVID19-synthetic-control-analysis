@@ -86,6 +86,7 @@ class syn_model(RobustSyntheticControl):
         if singVals_estimate:
             self.kSingularValues = self.estimate_singVal(method = singval_mathod)
             self.model.kSingularValues = self.kSingularValues
+            print(self.kSingularValues )
 
         if filter_donor:
             self.donors = self.filter_donor(method = filter_method)[0]
@@ -108,7 +109,7 @@ class syn_model(RobustSyntheticControl):
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
 
-    def filter_donor(self, method = 'bin'):
+    def filter_donor(self, method = 'lasso'):
         perm_dict = self.permutation_distribution(show_graph = False, include_self = False)
 
         all_donors = np.array(list(perm_dict.keys()))
@@ -155,9 +156,9 @@ class syn_model(RobustSyntheticControl):
             a = np.max(X, axis = 0)
             b = np.min(X, axis = 0)
             X = (X - (a + b)/2)/((b-a)/2)
-            mean = np.mean(X, axis = 1)
-            sigma = np.sum(np.square(X[self.state] - mean))/(len(X)-1)
-            #sigma = np.var(X[models[0][donor_idx][state_idx].state], ddof = 1)
+            #mean = np.mean(X, axis = 1)
+            #sigma = np.sum(np.square(X[self.state] - mean))/(len(X)-1)
+            sigma = np.var(X[models[0][donor_idx][state_idx].state], ddof = 1)
             s = np.linalg.svd(X)[1]
             l = (2.1)* np.sqrt(len(s) * (sigma * p + p * (1-p)))
             h = (3)* np.sqrt(len(s) * (sigma * p + p * (1-p)))
@@ -288,12 +289,12 @@ class syn_model(RobustSyntheticControl):
             show_donors = len(out_dict.keys())
         sorted_dict = sorted(out_dict.items(), key=lambda item: item[1])
         if show_graph:
-            states = [item[0] for item in sorted_dict[-show_donors:] if item[0] != self.state]
+            states = [str(item[0]) for item in sorted_dict[-show_donors:] if item[0] != self.state]
             values = [item[1] for item in sorted_dict[-show_donors:] if item[0] != self.state]
 
             if include_self:
 
-                states += [self.state]
+                states += [str(self.state)]
                 values += [out_dict[self.state]]
 
             if not ax:
