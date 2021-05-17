@@ -156,16 +156,17 @@ class syn_model(RobustSyntheticControl):
             a = np.max(X, axis = 0)
             b = np.min(X, axis = 0)
             X = (X - (a + b)/2)/((b-a)/2)
+            ########### ROW MEAN
             #mean = np.mean(X, axis = 1)
             #sigma = np.sum(np.square(X[self.state] - mean))/(len(X)-1)
-            sigma = np.var(X[models[0][donor_idx][state_idx].state], ddof = 1)
+            ###########
+            sigma = np.var(X[self.state], ddof = 1) # Column mean
             s = np.linalg.svd(X)[1]
             l = (2.1)* np.sqrt(len(s) * (sigma * p + p * (1-p)))
             h = (3)* np.sqrt(len(s) * (sigma * p + p * (1-p)))
 
             l = len(s[s > l])
             h = len(s[s > h])
-
 
             return (h, l)
 
