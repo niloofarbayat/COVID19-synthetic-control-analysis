@@ -387,6 +387,7 @@ class syn_model(RobustSyntheticControl):
             ax.set_title(title_text+" for "+str(self.state).replace("-None",""), fontsize=fontsize)
         ax.set_xlabel(xaxis, fontsize=fontsize)
         ax.set_ylabel(yaxis, fontsize=fontsize)
+        ax.set_xlim(left=0)
         if show_legend:
             ax.legend(fontsize=fontsize)
         figure.canvas.draw()
@@ -394,11 +395,10 @@ class syn_model(RobustSyntheticControl):
         ax.set_xticklabels(labels, rotation=20)
   
         if intervention_date_x_ticks:
-            labels = [item.get_text() for item in ax.get_xticklabels()]
             x_labels = []
             ts = (pd.to_datetime(intervention_date_x_ticks[self.state]))
             for label in labels:
-                tmp_date = ts + datetime.timedelta(days = int(label))
+                tmp_date = ts + datetime.timedelta(days = int(label.replace('−','-')))
                 x_labels.append(tmp_date.strftime('%Y-%m-%d'))
 
             ax.set_xticklabels(x_labels, rotation=45)
