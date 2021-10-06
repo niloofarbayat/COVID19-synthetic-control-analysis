@@ -494,7 +494,7 @@ def _update_israel():
     vaccinations_hidden_path = "../data/israel/.vaccinated_city_table.csv"
 
     if os.path.exists(data_hidden_path):
-        lines = pd.read_csv(data_hidden_path)["_id"].iloc[-1]
+        lines = pd.read_csv(data_hidden_path, error_bad_lines = False)["_id"].iloc[-1]
         d1 = url.urlopen(_israel_data_web_path + "&limit=1000&offset=" + str(lines))
         d2 = json.loads(d1.read().decode('utf8'))["result"]
 
@@ -510,7 +510,7 @@ def _update_israel():
 
 
     if os.path.exists(vaccinations_hidden_path):
-        lines = pd.read_csv(vaccinations_hidden_path)["_id"].iloc[-1]
+        lines = pd.read_csv(vaccinations_hidden_path, error_bad_lines = False)["_id"].iloc[-1]
         d3 = url.urlopen(_israel_vaccinations_web_path + "&limit=1000&offset=" + str(lines))
         d4 = json.loads(d3.read().decode('utf8'))["result"]
 
