@@ -175,7 +175,7 @@ class syn_model(RobustSyntheticControl):
 
         if method == "auto":
             nominal_rank = min(np.array(X).shape)
-            return find_auto_rank(X, self.low_thresh, nominal_rank)
+            return find_auto_rank(self.state, self.dfs, self.low_thresh, self.donors, nominal_rank = nominal_rank)
 
 
 

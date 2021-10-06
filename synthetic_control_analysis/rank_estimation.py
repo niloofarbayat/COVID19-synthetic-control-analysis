@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 from syn_model import *
+from statsmodels.tsa.stattools import acf, pacf
+from statsmodels.graphics.tsaplots import plot_pacf
+from statsmodels.graphics.tsaplots import plot_acf
 
 def Chebyshev_vTAv(A, v, deg):
     
@@ -267,12 +270,12 @@ def estimate_rank(X):
     ###########
     return np.sum(d > (g))
 
-def find_auto_rank(input_df, intervention,nominal_rank, start = 1):
+def find_auto_rank(target, input_df, intervention,otherstates,nominal_rank=30, start = 1):
     nlags = 10
     valid_sv = {}
 
     for i in range(start,nominal_rank+1):
-        m = syn_model(0, i, [input_df], 200, intervention, otherStates=list(input_df.columns)[1:])
+        m = syn_model(target, i, input_df, 200, intervention, otherStates=otherstates)
         m.fit_model(force_positive=False)
         err = (m.denoisedDF.values - m.train.values)
         #valid_sv.append([])
@@ -287,7 +290,7 @@ def find_auto_rank(input_df, intervention,nominal_rank, start = 1):
      
     valid_sv = list(valid_sv.values())
     if len(valid_sv):
-        return round((np.array(valid_sv)).mean())
+        return min(valid_sv) # round((np.array(valid_sv)).mean())
     return 0 #nominal_rank
 
 
