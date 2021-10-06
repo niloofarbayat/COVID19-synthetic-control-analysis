@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from syn_model import *
 
 def Chebyshev_vTAv(A, v, deg):
     
@@ -265,6 +266,30 @@ def estimate_rank(X):
     # return r,g,zz,z1,xx,yy
     ###########
     return np.sum(d > (g))
+
+def find_auto_rank(input_df, intervention,nominal_rank, start = 1):
+    nlags = 10
+    valid_sv = {}
+
+    for i in range(start,nominal_rank+1):
+        m = syn_model(0, i, [input_df], 200, intervention, otherStates=list(input_df.columns)[1:])
+        m.fit_model(force_positive=False)
+        err = (m.denoisedDF.values - m.train.values)
+        #valid_sv.append([])
+        for j in range(len(err[0])):
+            error = np.array([err[i][j] for i in range(len(err))])
+            error = (error - error.mean()) / error.std()
+
+            lag_acf, confint, q_stat, p_values = acf(error, nlags=nlags, alpha=.05, qstat = True)
+            lag_pacf, confint = pacf(error, nlags=nlags, alpha=.05)
+            if ((p_values>0.05).all() or i == nominal_rank) and j not in valid_sv: #(p_values.mean()>0.05): #
+                valid_sv[j]= i
+     
+    valid_sv = list(valid_sv.values())
+    if len(valid_sv):
+        return round((np.array(valid_sv)).mean())
+    return 0 #nominal_rank
+
 
 
 

@@ -79,7 +79,7 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'bin', singval_mathod = 'default', singVals_estimate = False):
+    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'bin',eps = 1e-4, alpha = 0.05, singval_mathod = 'default', singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
@@ -89,7 +89,7 @@ class syn_model(RobustSyntheticControl):
             print(self.kSingularValues )
 
         if filter_donor:
-            self.donors = self.filter_donor(method = filter_method)[0]
+            self.donors = self.filter_donor(method = filter_method, eps = eps, alpha = alpha)[0]
 
             if len(self.donors) == 0:
                 raise ValueError("Donor pool size 0")
@@ -109,14 +109,15 @@ class syn_model(RobustSyntheticControl):
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
 
-    def filter_donor(self, method = 'lasso'):
+    def filter_donor(self, method = 'lasso', eps = 1e-4, alpha = 0.05):
         perm_dict = self.permutation_distribution(show_graph = False, include_self = False)
 
         all_donors = np.array(list(perm_dict.keys()))
         values = np.array(list(perm_dict.values()))
 
-        if method == 'std':
+        new_donors, new_values = all_donors, values
 
+        if method == 'std':
             std = np.std(values)
             c = 1 + 2 * std
             new_donors = all_donors[values < c]
@@ -138,11 +139,10 @@ class syn_model(RobustSyntheticControl):
             new_values = values[values < c]
 
         if method == 'lasso':
-            eps = 1e-4
-            clf = linear_model.Lasso(alpha=0.05, normalize = True)
+            clf = linear_model.Lasso(alpha=alpha, normalize = True)
             clf.fit(self.train[self.donors],self.train[self.state])
-            new_donors = all_donors[clf.coef_ > eps]
-            new_values = values[clf.coef_ > eps]
+            new_donors = all_donors[abs(clf.coef_) > eps]
+            new_values = values[abs(clf.coef_) > eps]
        
 
         return list(new_donors), list(new_values)
@@ -171,8 +171,11 @@ class syn_model(RobustSyntheticControl):
             return (h, l)
 
         if method == "default":
-
             return estimate_rank(np.array(X))
+
+        if method == "auto":
+            nominal_rank = min(np.array(X).shape)
+            return find_auto_rank(X, self.low_thresh, nominal_rank)
 
 
 
@@ -388,12 +391,11 @@ class syn_model(RobustSyntheticControl):
         ax.set_xlabel(xaxis, fontsize=fontsize)
         ax.set_ylabel(yaxis, fontsize=fontsize)
         ax.set_xlim(left=0)
-        if show_legend:
-            ax.legend(fontsize=fontsize)
+        #if show_legend:
+        ax.legend(fontsize=fontsize)
         figure.canvas.draw()
         labels = [item.get_text() for item in ax.get_xticklabels()]
         ax.set_xticklabels(labels, rotation=20)
-  
         if intervention_date_x_ticks:
             x_labels = []
             ts = (pd.to_datetime(intervention_date_x_ticks[self.state]))
@@ -402,3 +404,5 @@ class syn_model(RobustSyntheticControl):
                 x_labels.append(tmp_date.strftime('%Y-%m-%d'))
 
             ax.set_xticklabels(x_labels, rotation=45)
+
+
