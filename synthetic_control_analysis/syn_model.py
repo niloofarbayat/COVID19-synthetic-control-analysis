@@ -83,10 +83,6 @@ class syn_model(RobustSyntheticControl):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
-        if singVals_estimate:
-            self.kSingularValues = self.estimate_singVal(method = singval_mathod)
-            self.model.kSingularValues = self.kSingularValues
-            print(self.kSingularValues )
 
         if filter_donor:
             self.donors = self.filter_donor(method = filter_method, eps = eps, alpha = alpha)[0]
@@ -97,6 +93,11 @@ class syn_model(RobustSyntheticControl):
             self.model.otherSeriesKeysArray = self.donors
             self.train, self.test = self.__split_data()
 
+
+        if singVals_estimate:
+            self.kSingularValues = self.estimate_singVal(method = singval_mathod)
+            self.model.kSingularValues = self.kSingularValues
+            # print(self.kSingularValues )
 
 
         self.fit(self.train)
@@ -109,7 +110,7 @@ class syn_model(RobustSyntheticControl):
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
 
-    def filter_donor(self, method = 'lasso', eps = 1e-4, alpha = 0.05):
+    def filter_donor(self, method = 'iqr', eps = 1e-4, alpha = 0.05):
         perm_dict = self.permutation_distribution(show_graph = False, include_self = False)
 
         all_donors = np.array(list(perm_dict.keys()))
@@ -123,12 +124,31 @@ class syn_model(RobustSyntheticControl):
             new_donors = all_donors[values < c]
             new_values = values[values < c]
 
-        if method == 'bin':
+        elif method == 'iqr':
+            q75,q25 = np.percentile(values,[75,25])
+            intr_qr = q75-q25
+            c = q75+(1.5*intr_qr)
+            new_donors = all_donors[values < c]
+            new_values = values[values < c]
+
+        elif method == 'quantile': 
+            q75,q25 = np.percentile(values,[75,25])
+            c = q75
+            new_donors = all_donors[values < c]
+            new_values = values[values < c]
+
+        elif method == 'percentile': 
+            q50 = np.percentile(values,[50])
+            c = q50
+            new_donors = all_donors[values < c]
+            new_values = values[values < c]
+
+        elif method == 'bin':
             c = np.histogram(values[values < np.finfo(np.float64).max], bins=10)[1][1]
             new_donors = all_donors[values < c]
             new_values = values[values < c]
 
-        if method == 'combine':
+        elif method == 'combine':
             c = np.histogram(values[values < np.finfo(np.float64).max], bins=10)[1][1]
             all_donors = all_donors[values < c]
             values = values[values < c]
@@ -138,12 +158,14 @@ class syn_model(RobustSyntheticControl):
             new_donors = all_donors[values < c]
             new_values = values[values < c]
 
-        if method == 'lasso':
+        elif method == 'lasso':
             clf = linear_model.Lasso(alpha=alpha, normalize = True)
             clf.fit(self.train[self.donors],self.train[self.state])
             new_donors = all_donors[abs(clf.coef_) > eps]
             new_values = values[abs(clf.coef_) > eps]
-       
+
+        else:
+            print('donor selection method is invalid.')
 
         return list(new_donors), list(new_values)
 
@@ -175,6 +197,30 @@ class syn_model(RobustSyntheticControl):
 
         if method == "auto":
             nominal_rank = min(np.array(X).shape)
+            
+            def find_auto_rank(target, input_df, intervention,otherstates,nominal_rank=30, start = 1):
+                nlags = 10
+                valid_sv = {}
+
+                for i in range(start,nominal_rank+1):
+                    m = syn_model(target, i, input_df, 200, intervention, otherStates=otherstates)
+                    m.fit_model(force_positive=False)
+                    err = (m.denoisedDF.values - m.train.values)
+                    #valid_sv.append([])
+                    for j in range(len(err[0])):
+                        error = np.array([err[i][j] for i in range(len(err))])
+                        error = (error - error.mean()) / error.std()
+
+                        lag_acf, confint, q_stat, p_values = acf(error, nlags=nlags, alpha=.05, qstat = True)
+                        lag_pacf, confint = pacf(error, nlags=nlags, alpha=.05)
+                        if ((p_values>0.05).all() or i == nominal_rank) and j not in valid_sv: #(p_values.mean()>0.05): #
+                            valid_sv[j]= i
+                 
+                valid_sv = list(valid_sv.values())
+                if len(valid_sv):
+                    return min(valid_sv) # round((np.array(valid_sv)).mean())
+                return 0 #nominal_rank
+            
             return find_auto_rank(self.state, self.dfs, self.low_thresh, self.donors, nominal_rank = nominal_rank)
 
 

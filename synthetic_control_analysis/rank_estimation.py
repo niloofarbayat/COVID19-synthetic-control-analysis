@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from syn_model import *
+# from syn_model import *
 from statsmodels.tsa.stattools import acf, pacf
 from statsmodels.graphics.tsaplots import plot_pacf
 from statsmodels.graphics.tsaplots import plot_acf
@@ -269,7 +269,7 @@ def estimate_rank(X):
     # return r,g,zz,z1,xx,yy
     ###########
     return np.sum(d > (g))
-
+'''
 def find_auto_rank(target, input_df, intervention,otherstates,nominal_rank=30, start = 1):
     nlags = 10
     valid_sv = {}
@@ -292,7 +292,7 @@ def find_auto_rank(target, input_df, intervention,otherstates,nominal_rank=30, s
     if len(valid_sv):
         return min(valid_sv) # round((np.array(valid_sv)).mean())
     return 0 #nominal_rank
-
+'''
 
 
 
