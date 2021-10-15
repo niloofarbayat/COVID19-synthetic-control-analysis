@@ -10,6 +10,9 @@ import matplotlib.colors as mcolors
 from sklearn import linear_model
 from rank_estimation import *
 
+def mean_error(y_actual, y_pred):
+    return np.mean(y_actual - y_pred)
+
 class syn_model(RobustSyntheticControl):
 
 
@@ -79,13 +82,13 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'bin',eps = 1e-4, alpha = 0.05, singval_mathod = 'default', singVals_estimate = False):
+    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'bin', ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'default', singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
 
         if filter_donor:
-            self.donors = self.filter_donor(method = filter_method, eps = eps, alpha = alpha)[0]
+            self.donors = self.filter_donor(filter_metrics, method = filter_method, eps = eps, alpha = alpha, ri_method = ri_method)[0]
 
             if len(self.donors) == 0:
                 raise ValueError("Donor pool size 0")
@@ -110,19 +113,24 @@ class syn_model(RobustSyntheticControl):
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
 
-    def filter_donor(self, method = 'iqr', eps = 1e-4, alpha = 0.05):
-        perm_dict = self.permutation_distribution(show_graph = False, include_self = False)
+    def filter_donor(self, err_metrics, ri_method = "ratio", method = 'iqr', eps = 1e-4, alpha = 0.05):
+        perm_dict = self.permutation_distribution(show_graph = False, include_self = False, ri_method = ri_method, metrics = err_metrics)
 
         all_donors = np.array(list(perm_dict.keys()))
         values = np.array(list(perm_dict.values()))
 
         new_donors, new_values = all_donors, values
 
+        if ri_method == "ratio": 
+            mu = 1
+        else:
+            mu = 0
+
         if method == 'std':
             std = np.std(values)
-            c = 1 + 2 * std
-            new_donors = all_donors[values < c]
-            new_values = values[values < c]
+            c = mu + 2 * std
+            new_donors = all_donors[(values < c) & (values > -c)]
+            new_values = values[(values < c) & (values > -c)]
 
         elif method == 'iqr':
             q75,q25 = np.percentile(values,[75,25])
@@ -154,7 +162,7 @@ class syn_model(RobustSyntheticControl):
             values = values[values < c]
 
             std = np.std(values)
-            c = 1 + 2 * std
+            c = mu + 2 * std
             new_donors = all_donors[values < c]
             new_values = values[values < c]
 
@@ -289,13 +297,16 @@ class syn_model(RobustSyntheticControl):
 
         return U, s, Vh
 
-    def find_ri(self, metrics = mean_squared_error):
+    def find_ri(self, metrics = mean_squared_error, method = "ratio"):
         '''
         Find the ri score. Defined by the ratio of testing_errror/traing_error
         '''
-        return self.testing_error(metrics)/self.training_error(metrics)
+        if method == "ratio":
+            return self.testing_error(metrics)/self.training_error(metrics)
+        elif method == "diff":
+            return self.testing_error(metrics) - self.training_error(metrics)
 
-    def permutation_distribution(self, show_graph = True, include_self = True, show_donors = 10, ax = None, plot_models=0, metric=mean_squared_error):
+    def permutation_distribution(self, show_graph = True, include_self = True, show_donors = 10, ax = None, plot_models=0, ri_method = "ratio", metrics=mean_squared_error):
         '''
         Find the premutation_distribution for the states with all it donors
 
@@ -314,7 +325,7 @@ class syn_model(RobustSyntheticControl):
 
         if include_self:
         
-            out_dict[self.state] = self.find_ri(metric)
+            out_dict[self.state] = self.find_ri(metrics, method = ri_method)
         
         for donor in self.donors:
             donorPool = self.donors.copy()
@@ -323,7 +334,7 @@ class syn_model(RobustSyntheticControl):
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
             temp_model.fit_model(force_positive=False)
             
-            out_dict[donor] = temp_model.find_ri(metric)
+            out_dict[donor] = temp_model.find_ri(metrics, method = ri_method)
             models[donor] = temp_model
            
         
