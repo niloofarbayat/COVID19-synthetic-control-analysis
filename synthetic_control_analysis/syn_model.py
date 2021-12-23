@@ -9,6 +9,8 @@ import random
 import matplotlib.colors as mcolors
 from sklearn import linear_model
 from rank_estimation import *
+from pyod.models.hbos import HBOS
+
 
 def mean_error(y_actual, y_pred):
     return np.mean(y_actual - y_pred)
@@ -82,13 +84,13 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'bin', ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'default', singVals_estimate = False):
+    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'hbo', backward_donor_eliminate = True, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'default', singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
 
         if filter_donor:
-            self.donors = self.filter_donor(filter_metrics, method = filter_method, eps = eps, alpha = alpha, ri_method = ri_method)[0]
+            self.donors = self.filter_donor(filter_metrics, method = filter_method,backward_donor_eliminate = backward_donor_eliminate, eps = eps, alpha = alpha, ri_method = ri_method)[0]
 
             if len(self.donors) == 0:
                 raise ValueError("Donor pool size 0")
@@ -113,7 +115,82 @@ class syn_model(RobustSyntheticControl):
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
 
-    def filter_donor(self, err_metrics, ri_method = "ratio", method = 'iqr', eps = 1e-4, alpha = 0.05):
+    def filter_donor(self, err_metrics, ri_method = "ratio", method = 'hbo', backward_donor_eliminate = True, eps = 1e-4, alpha = 0.05):
+
+        #################################################################################
+        ########################### BACKWARD DONOR ELIMINATION ##########################
+        #################################################################################
+
+        if backward_donor_eliminate:
+
+            def backward_donor_elimination(rscModel,hi_thresh, low_thresh, metric=mean_squared_error, output = 'error_ratio', shuffle = False):
+                '''
+                Find the error ratio from removing each of the states within the donorpool
+
+                @param
+                metric: metric used to calculate ri values
+                '''
+                
+                def find_lo_high_thresh(rscModel, hi_thresh, low_thresh, donorPool, error_ratio = True):
+                    shuffled_df = rscModel.dfs[0].iloc[:hi_thresh,:]
+                    if shuffle:
+                        shuffled_df = shuffled_df.iloc[np.random.permutation(len(shuffled_df))] 
+                    temp_model = syn_model(rscModel.state, rscModel.kSingularValues, [shuffled_df], hi_thresh, low_thresh, 
+                                        random_distribution = rscModel.random_distribution, lambdas = rscModel.lambdas, mRSC = rscModel.mRSC, otherStates=donorPool)
+                    temp_model.fit_model(force_positive=False)
+                    
+                    return temp_model.find_ri(metric) if error_ratio else temp_model.train_err
+
+                out_dict = dict()
+                    
+                for donor in rscModel.donors:
+                    donorPool = rscModel.donors.copy()
+                    donorPool.remove(donor)
+                    #only pre-intervention
+                    
+                    if output == 'error_ratio': 
+                        out_dict[donor] = find_lo_high_thresh(rscModel, hi_thresh, low_thresh,donorPool, error_ratio = True)
+                        
+                    elif output == 'training_error':
+                        out_dict[donor] = find_lo_high_thresh(rscModel, hi_thresh, low_thresh,donorPool, error_ratio = False)
+                
+                new_donors = np.array(list(out_dict.keys()))
+                values = np.array(list(out_dict.values()))
+                max_value = max(values)
+                new_donors,values = new_donors[(values < max_value)], values[(values < max_value)]
+                
+                return list(new_donors)
+
+
+            hi_thresh = self.low_thresh if ri_method == "ratio" else self.thresh
+            low_thresh = int(self.low_thresh*.8) if ri_method == "ratio" else self.low_thresh
+            
+
+            rscModel1 = syn_model(self.state, self.kSingularValues, self.dfs, hi_thresh, low_thresh, 
+                                random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=self.donors)
+            rscModel1.fit_model(filter_donor = False, singVals_estimate = True, singval_mathod ='auto')
+
+            while len(self.donors)>3:
+        
+                new_donors = backward_donor_elimination(rscModel1, hi_thresh, low_thresh, metric=mean_squared_error, shuffle = False)
+                
+
+                rscModel2 =syn_model(self.state, self.kSingularValues, self.dfs, hi_thresh, low_thresh, otherStates=new_donors)
+                                
+                rscModel2.fit_model(filter_donor = False, singVals_estimate = True, singval_mathod ='auto')
+
+                if  (   ri_method == "ratio" and (rscModel1.find_ri(mean_squared_error) <= rscModel2.find_ri(mean_squared_error)) or  
+                        ri_method != "ratio" and (rscModel1.training_error(mean_squared_error) <= rscModel2.training_error(mean_squared_error)) 
+                    ):
+                    break
+
+                self.donors = new_donors
+                rscModel1 = rscModel2
+                
+        #################################################################################
+        #################################################################################
+        #################################################################################
+
         perm_dict = self.permutation_distribution(show_graph = False, include_self = False, ri_method = ri_method, metrics = err_metrics)
 
         all_donors = np.array(list(perm_dict.keys()))
@@ -126,7 +203,26 @@ class syn_model(RobustSyntheticControl):
         else:
             mu = 0
 
-        if method == 'std':
+        if method =='hbo':
+
+            train_perm_dict =self.permutation_train_test(include_self = False)
+            train_values = np.array(list(perm_dict.values()))
+            
+            test_perm_dict = self.permutation_train_test(train_err = False, include_self = False)
+            test_values = np.array(list(perm_dict.values()))
+
+            input_df =  pd.DataFrame([train_values,test_values]).transpose() # pd.DataFrame(values)
+            hbos = HBOS(alpha=0.1, contamination=0.15, n_bins=20, tol=0.5)
+            hbos.fit(input_df)
+            output = hbos.decision_function(input_df)
+            res = hbos.predict(input_df)
+            res = np.array(res, dtype = bool)
+
+            new_donors = all_donors[~res]
+            new_values = test_values[~res]/train_values[~res]
+                   
+
+        elif method == 'std':
             std = np.std(values)
             c = mu + 2 * std
             new_donors = all_donors[(values < c) & (values > -c)]
@@ -171,6 +267,10 @@ class syn_model(RobustSyntheticControl):
             clf.fit(self.train[self.donors],self.train[self.state])
             new_donors = all_donors[abs(clf.coef_) > eps]
             new_values = values[abs(clf.coef_) > eps]
+        elif method == 'mcmc':
+
+            donor_to_remove = random.choice(all_donors, weights=values)
+            #TODO: continue
 
         else:
             print('donor selection method is invalid.')
@@ -305,6 +405,31 @@ class syn_model(RobustSyntheticControl):
             return self.testing_error(metrics)/self.training_error(metrics)
         elif method == "diff":
             return self.testing_error(metrics) - self.training_error(metrics)
+
+
+    def permutation_train_test(self, train_err = True, include_self = True):
+        out_dict = dict()
+        #models = dict()
+
+        if include_self:
+            if train_err:
+                out_dict[self.state] = self.train_err
+            else: 
+                out_dict[self.state] = self.test_err 
+
+        for donor in self.donors:
+            donorPool = self.donors.copy()
+            donorPool.remove(donor)
+            temp_model = syn_model(donor, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
+                                random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
+            temp_model.fit_model(force_positive=False)
+            if train_err:
+                out_dict[donor] = temp_model.train_err
+            else: 
+                out_dict[donor] = temp_model.test_err 
+
+        return out_dict
+
 
     def permutation_distribution(self, show_graph = True, include_self = True, show_donors = 10, ax = None, plot_models=0, ri_method = "ratio", metrics=mean_squared_error):
         '''
