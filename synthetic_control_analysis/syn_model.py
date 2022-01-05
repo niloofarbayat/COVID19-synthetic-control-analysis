@@ -78,7 +78,7 @@ class syn_model(RobustSyntheticControl):
             for i in range(num_dimensions):
                 trainDF=pd.concat([trainDF,self.lambdas[i]*self.dfs[i].iloc[:self.low_thresh,:]], axis=0)
 
-        testDF = df.iloc[self.low_thresh+1:self.thresh,:]
+        testDF = df.iloc[self.low_thresh:self.thresh,:]
 
         return trainDF, testDF
 
@@ -368,7 +368,7 @@ class syn_model(RobustSyntheticControl):
         Find the testing error. The metrics is defauted to be mean square error. 
         '''
 
-        return metrics(self.actual[self.low_thresh+1:self.thresh], self.predictions)
+        return metrics(self.actual[self.low_thresh:self.thresh], self.predictions)
 
     def model_weights(self):
 
