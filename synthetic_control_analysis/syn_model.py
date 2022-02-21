@@ -320,7 +320,7 @@ class syn_model(RobustSyntheticControl):
                         error = (error - error.mean()) / error.std()
 
                         lag_acf, confint, q_stat, p_values = acf(error, nlags=nlags, alpha=.05, qstat = True)
-                        lag_pacf, confint = pacf(error, nlags=nlags, alpha=.05)
+                        #lag_pacf, confint = pacf(error, nlags=nlags, alpha=.05)
                         if ((p_values>0.05).all() or i == nominal_rank) and j not in valid_sv: #(p_values.mean()>0.05): #
                             valid_sv[j]= i
                  
