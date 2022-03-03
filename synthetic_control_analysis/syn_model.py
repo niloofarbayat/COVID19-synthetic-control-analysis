@@ -18,7 +18,7 @@ def mean_error(y_actual, y_pred):
 class syn_model(RobustSyntheticControl):
 
 
-    def __init__(self, state, singVals, dfs, thresh, low_thresh, random_distribution = None, lambdas = [1],
+    def __init__(self, state, singVals, dfs, thresh, low_thresh, random_distribution = None, lambdas = [],
                  mRSC = False, otherStates=[]):
 
         '''
@@ -45,15 +45,16 @@ class syn_model(RobustSyntheticControl):
         self.low_thresh = low_thresh
         self.thresh = thresh
         self.mRSC = mRSC
-        self.lambdas = lambdas.copy()
+        self.lambdas = lambdas.copy() if len(lambdas) else [1 for _ in range(len(dfs))]
         self.random_distribution = random_distribution
-        self.actual = self.dfs[0][state]
+        self.actual = self.dfs[0][self.state]
         self.predictions = None
         self.model_fit = None
         self.train_err = None
         self.test_err = None
         self.denoisedDF = None
         self.train, self.test = self.__split_data()
+
 
 
     def __split_data(self):
@@ -132,10 +133,9 @@ class syn_model(RobustSyntheticControl):
                 '''
                 
                 def find_lo_high_thresh(rscModel, hi_thresh, low_thresh, donorPool, error_ratio = True):
-                    shuffled_df = rscModel.dfs[0].iloc[:hi_thresh,:]
-                    if shuffle:
-                        shuffled_df = shuffled_df.iloc[np.random.permutation(len(shuffled_df))] 
-                    temp_model = syn_model(rscModel.state, rscModel.kSingularValues, [shuffled_df], hi_thresh, low_thresh, 
+                    shuffled_df = [rscModel.dfs[i].iloc[:hi_thresh,:] for i in range(len(self.lambdas))]
+
+                    temp_model = syn_model(rscModel.state, rscModel.kSingularValues, shuffled_df, hi_thresh, low_thresh, 
                                         random_distribution = rscModel.random_distribution, lambdas = rscModel.lambdas, mRSC = rscModel.mRSC, otherStates=donorPool)
                     temp_model.fit_model(force_positive=False)
                     
@@ -212,7 +212,7 @@ class syn_model(RobustSyntheticControl):
             test_values = np.array(list(perm_dict.values()))
 
             input_df =  pd.DataFrame([train_values,test_values]).transpose() # pd.DataFrame(values)
-            hbos = HBOS(alpha=0.1, contamination=0.15, n_bins=20, tol=0.5)
+            hbos = HBOS(alpha=0.1, contamination=0.1, n_bins=20, tol=0.5)
             hbos.fit(input_df)
             output = hbos.decision_function(input_df)
             res = hbos.predict(input_df)
@@ -360,15 +360,15 @@ class syn_model(RobustSyntheticControl):
         '''
         Find the training error. The metrics is defauted to be mean square error. 
         '''
-
-        return metrics(self.actual[:self.low_thresh], self.model_fit)
+        #print(self.train, self.model_fit)
+        return metrics(self.train[self.state], self.model_fit)
 
     def testing_error(self, metrics = mean_squared_error):
         '''
         Find the testing error. The metrics is defauted to be mean square error. 
         '''
 
-        return metrics(self.actual[self.low_thresh:self.thresh], self.predictions)
+        return metrics(self.test[self.state], self.predictions)
 
     def model_weights(self):
 
@@ -560,7 +560,7 @@ class syn_model(RobustSyntheticControl):
             ax.set_yscale('log')
         ax.plot(self.actual.index, self.actual, label='Actuals', color='k', linestyle='-', alpha = 0.7)
         ax.plot(self.test.index, self.predictions, label='Predictions', color='r', linestyle='--')
-        ax.plot(self.train.index, self.model_fit, label = 'Fitted model', color='g', linestyle=':')
+        ax.plot(self.train.index[:self.low_thresh], self.model_fit[:self.low_thresh], label = 'Fitted model', color='g', linestyle=':')
         if show_denoise:
             ax.plot(self.denoisedDF.index, self.denoisedDF[self.state], label = 'Denoised Model', color='purple', linestyle='-.')
         ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
