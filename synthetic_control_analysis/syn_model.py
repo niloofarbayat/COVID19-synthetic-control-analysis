@@ -18,7 +18,7 @@ def mean_error(y_actual, y_pred):
 class syn_model(RobustSyntheticControl):
 
 
-    def __init__(self, state, singVals, dfs, thresh, low_thresh, random_distribution = None, lambdas = [],
+    def __init__(self, state, singVals, dfs, thresh, low_thresh, random_distribution = None, lambdas = [1],
                  mRSC = False, otherStates=[]):
 
         '''
@@ -45,16 +45,15 @@ class syn_model(RobustSyntheticControl):
         self.low_thresh = low_thresh
         self.thresh = thresh
         self.mRSC = mRSC
-        self.lambdas = lambdas.copy() if len(lambdas) else [1 for _ in range(len(dfs))]
+        self.lambdas = lambdas.copy()
         self.random_distribution = random_distribution
-        self.actual = self.dfs[0][self.state]
+        self.actual = self.dfs[0][state]
         self.predictions = None
         self.model_fit = None
         self.train_err = None
         self.test_err = None
         self.denoisedDF = None
         self.train, self.test = self.__split_data()
-
 
 
     def __split_data(self):
@@ -133,9 +132,10 @@ class syn_model(RobustSyntheticControl):
                 '''
                 
                 def find_lo_high_thresh(rscModel, hi_thresh, low_thresh, donorPool, error_ratio = True):
-                    shuffled_df = [rscModel.dfs[i].iloc[:hi_thresh,:] for i in range(len(self.lambdas))]
-
-                    temp_model = syn_model(rscModel.state, rscModel.kSingularValues, shuffled_df, hi_thresh, low_thresh, 
+                    shuffled_df = rscModel.dfs[0].iloc[:hi_thresh,:]
+                    if shuffle:
+                        shuffled_df = shuffled_df.iloc[np.random.permutation(len(shuffled_df))] 
+                    temp_model = syn_model(rscModel.state, rscModel.kSingularValues, [shuffled_df], hi_thresh, low_thresh, 
                                         random_distribution = rscModel.random_distribution, lambdas = rscModel.lambdas, mRSC = rscModel.mRSC, otherStates=donorPool)
                     temp_model.fit_model(force_positive=False)
                     
@@ -206,13 +206,25 @@ class syn_model(RobustSyntheticControl):
         if method =='hbo':
 
             train_perm_dict =self.permutation_train_test(include_self = False)
-            train_values = np.array(list(perm_dict.values()))
+            train_values = np.array(list(train_perm_dict.values()))  ### A bug?
+
+            # for item in train_perm_dict:
+            #     print(item, " ", train_perm_dict[item])
+
+            # print("===============================================")
             
             test_perm_dict = self.permutation_train_test(train_err = False, include_self = False)
-            test_values = np.array(list(perm_dict.values()))
+            test_values = np.array(list(train_perm_dict.values()))
+
+            # for item in test_perm_dict:
+            #     print(item, " ", test_perm_dict[item])
+
+            #print(test_perm_dict)
 
             input_df =  pd.DataFrame([train_values,test_values]).transpose() # pd.DataFrame(values)
-            hbos = HBOS(alpha=0.1, contamination=0.1, n_bins=20, tol=0.5)
+            hbos = HBOS(alpha=0.1, contamination=0.15, n_bins=20, tol=0.5)
+
+            #print(input_df)
             hbos.fit(input_df)
             output = hbos.decision_function(input_df)
             res = hbos.predict(input_df)
@@ -320,7 +332,7 @@ class syn_model(RobustSyntheticControl):
                         error = (error - error.mean()) / error.std()
 
                         lag_acf, confint, q_stat, p_values = acf(error, nlags=nlags, alpha=.05, qstat = True)
-                        #lag_pacf, confint = pacf(error, nlags=nlags, alpha=.05)
+                        lag_pacf, confint = pacf(error, nlags=nlags, alpha=.05)
                         if ((p_values>0.05).all() or i == nominal_rank) and j not in valid_sv: #(p_values.mean()>0.05): #
                             valid_sv[j]= i
                  
@@ -360,15 +372,15 @@ class syn_model(RobustSyntheticControl):
         '''
         Find the training error. The metrics is defauted to be mean square error. 
         '''
-        #print(self.train, self.model_fit)
-        return metrics(self.train[self.state], self.model_fit)
+
+        return metrics(self.actual[:self.low_thresh], self.model_fit)
 
     def testing_error(self, metrics = mean_squared_error):
         '''
         Find the testing error. The metrics is defauted to be mean square error. 
         '''
 
-        return metrics(self.test[self.state], self.predictions)
+        return metrics(self.actual[self.low_thresh:self.thresh], self.predictions)
 
     def model_weights(self):
 
@@ -423,6 +435,10 @@ class syn_model(RobustSyntheticControl):
             temp_model = syn_model(donor, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
             temp_model.fit_model(force_positive=False)
+
+            # if temp_model.train_err == 0 or temp_model.test_err == 0:
+            #     continue
+
             if train_err:
                 out_dict[donor] = temp_model.train_err
             else: 
@@ -560,7 +576,7 @@ class syn_model(RobustSyntheticControl):
             ax.set_yscale('log')
         ax.plot(self.actual.index, self.actual, label='Actuals', color='k', linestyle='-', alpha = 0.7)
         ax.plot(self.test.index, self.predictions, label='Predictions', color='r', linestyle='--')
-        ax.plot(self.train.index[:self.low_thresh], self.model_fit[:self.low_thresh], label = 'Fitted model', color='g', linestyle=':')
+        ax.plot(self.train.index, self.model_fit, label = 'Fitted model', color='g', linestyle=':')
         if show_denoise:
             ax.plot(self.denoisedDF.index, self.denoisedDF[self.state], label = 'Denoised Model', color='purple', linestyle='-.')
         ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
@@ -574,7 +590,7 @@ class syn_model(RobustSyntheticControl):
         ax.set_ylabel(yaxis, fontsize=fontsize)
         ax.set_xlim(left=0)
         #if show_legend:
-        ax.legend(fontsize=fontsize)
+        ax.legend(fontsize=25)
         figure.canvas.draw()
         labels = [item.get_text() for item in ax.get_xticklabels()]
         ax.set_xticklabels(labels, rotation=20)
