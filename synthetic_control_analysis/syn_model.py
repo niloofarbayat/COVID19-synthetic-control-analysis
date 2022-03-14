@@ -56,6 +56,7 @@ class syn_model(RobustSyntheticControl):
         self.train, self.test = self.__split_data()
 
 
+
     def __split_data(self):
         '''
         functions to process and prepare the training and testing data
@@ -84,13 +85,13 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'hbo', backward_donor_eliminate = True, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'default', singVals_estimate = False):
+    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'hbo', backward_donor_eliminate = False, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
 
         if filter_donor:
-            self.donors = self.filter_donor(filter_metrics, method = filter_method,backward_donor_eliminate = backward_donor_eliminate, eps = eps, alpha = alpha, ri_method = ri_method)[0]
+            self.donors = self.filter_donor(filter_metrics, method = filter_method,backward_donor_eliminate = backward_donor_eliminate, eps = eps, alpha = alpha, ri_method = ri_method, singval_mathod = singval_mathod, singVals_estimate = singVals_estimate)[0]
 
             if len(self.donors) == 0:
                 raise ValueError("Donor pool size 0")
@@ -115,7 +116,7 @@ class syn_model(RobustSyntheticControl):
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
 
-    def filter_donor(self, err_metrics, ri_method = "ratio", method = 'hbo', backward_donor_eliminate = True, eps = 1e-4, alpha = 0.05):
+    def filter_donor(self, err_metrics, ri_method = "ratio", method = 'hbo', backward_donor_eliminate = True, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
 
         #################################################################################
         ########################### BACKWARD DONOR ELIMINATION ##########################
@@ -132,12 +133,12 @@ class syn_model(RobustSyntheticControl):
                 '''
                 
                 def find_lo_high_thresh(rscModel, hi_thresh, low_thresh, donorPool, error_ratio = True):
-                    shuffled_df = rscModel.dfs[0].iloc[:hi_thresh,:]
-                    if shuffle:
-                        shuffled_df = shuffled_df.iloc[np.random.permutation(len(shuffled_df))] 
-                    temp_model = syn_model(rscModel.state, rscModel.kSingularValues, [shuffled_df], hi_thresh, low_thresh, 
+                    # THE FOLLOWING LINES ARE TO HANDEL MULTIDIMENTIONAL WITH LAMBDA. DO NOT CHANGE.
+                    shuffled_df = [rscModel.dfs[i].iloc[:hi_thresh,:] for i in range(len(self.lambdas))]
+
+                    temp_model = syn_model(rscModel.state, rscModel.kSingularValues, shuffled_df, hi_thresh, low_thresh, 
                                         random_distribution = rscModel.random_distribution, lambdas = rscModel.lambdas, mRSC = rscModel.mRSC, otherStates=donorPool)
-                    temp_model.fit_model(force_positive=False)
+                    temp_model.fit_model()
                     
                     return temp_model.find_ri(metric) if error_ratio else temp_model.train_err
 
@@ -168,7 +169,7 @@ class syn_model(RobustSyntheticControl):
 
             rscModel1 = syn_model(self.state, self.kSingularValues, self.dfs, hi_thresh, low_thresh, 
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=self.donors)
-            rscModel1.fit_model(filter_donor = False, singVals_estimate = True, singval_mathod ='auto')
+            rscModel1.fit_model(filter_donor = False, singval_mathod = singval_mathod, singVals_estimate = singVals_estimate)
 
             while len(self.donors)>3:
         
@@ -177,7 +178,7 @@ class syn_model(RobustSyntheticControl):
 
                 rscModel2 =syn_model(self.state, self.kSingularValues, self.dfs, hi_thresh, low_thresh, otherStates=new_donors)
                                 
-                rscModel2.fit_model(filter_donor = False, singVals_estimate = True, singval_mathod ='auto')
+                rscModel2.fit_model(filter_donor = False, singval_mathod = singval_mathod, singVals_estimate = singVals_estimate)
 
                 if  (   ri_method == "ratio" and (rscModel1.find_ri(mean_squared_error) <= rscModel2.find_ri(mean_squared_error)) or  
                         ri_method != "ratio" and (rscModel1.training_error(mean_squared_error) <= rscModel2.training_error(mean_squared_error)) 
@@ -206,25 +207,13 @@ class syn_model(RobustSyntheticControl):
         if method =='hbo':
 
             train_perm_dict =self.permutation_train_test(include_self = False)
-            train_values = np.array(list(train_perm_dict.values()))  ### A bug?
-
-            # for item in train_perm_dict:
-            #     print(item, " ", train_perm_dict[item])
-
-            # print("===============================================")
+            train_values = np.array(list(train_perm_dict.values()))
             
             test_perm_dict = self.permutation_train_test(train_err = False, include_self = False)
-            test_values = np.array(list(train_perm_dict.values()))
-
-            # for item in test_perm_dict:
-            #     print(item, " ", test_perm_dict[item])
-
-            #print(test_perm_dict)
+            test_values = np.array(list(test_perm_dict.values()))
 
             input_df =  pd.DataFrame([train_values,test_values]).transpose() # pd.DataFrame(values)
             hbos = HBOS(alpha=0.1, contamination=0.15, n_bins=20, tol=0.5)
-
-            #print(input_df)
             hbos.fit(input_df)
             output = hbos.decision_function(input_df)
             res = hbos.predict(input_df)
@@ -324,7 +313,7 @@ class syn_model(RobustSyntheticControl):
 
                 for i in range(start,nominal_rank+1):
                     m = syn_model(target, i, input_df, 200, intervention, otherStates=otherstates)
-                    m.fit_model(force_positive=False)
+                    m.fit_model() #force_positive=False
                     err = (m.denoisedDF.values - m.train.values)
                     #valid_sv.append([])
                     for j in range(len(err[0])):
@@ -332,14 +321,15 @@ class syn_model(RobustSyntheticControl):
                         error = (error - error.mean()) / error.std()
 
                         lag_acf, confint, q_stat, p_values = acf(error, nlags=nlags, alpha=.05, qstat = True)
-                        lag_pacf, confint = pacf(error, nlags=nlags, alpha=.05)
+                        #lag_pacf, confint = pacf(error, nlags=nlags, alpha=.05)
                         if ((p_values>0.05).all() or i == nominal_rank) and j not in valid_sv: #(p_values.mean()>0.05): #
                             valid_sv[j]= i
                  
                 valid_sv = list(valid_sv.values())
                 if len(valid_sv):
-                    return min(valid_sv) # round((np.array(valid_sv)).mean())
-                return 0 #nominal_rank
+                    return round((np.array(valid_sv)).mean())
+
+                return nominal_rank #0
             
             return find_auto_rank(self.state, self.dfs, self.low_thresh, self.donors, nominal_rank = nominal_rank)
 
@@ -372,15 +362,15 @@ class syn_model(RobustSyntheticControl):
         '''
         Find the training error. The metrics is defauted to be mean square error. 
         '''
-
-        return metrics(self.actual[:self.low_thresh], self.model_fit)
+        #print(self.train, self.model_fit)
+        return metrics(self.train[self.state], self.model_fit)
 
     def testing_error(self, metrics = mean_squared_error):
         '''
         Find the testing error. The metrics is defauted to be mean square error. 
         '''
 
-        return metrics(self.actual[self.low_thresh:self.thresh], self.predictions)
+        return metrics(self.test[self.state], self.predictions)
 
     def model_weights(self):
 
@@ -434,11 +424,7 @@ class syn_model(RobustSyntheticControl):
             donorPool.remove(donor)
             temp_model = syn_model(donor, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
-            temp_model.fit_model(force_positive=False)
-
-            # if temp_model.train_err == 0 or temp_model.test_err == 0:
-            #     continue
-
+            temp_model.fit_model(force_positive=True)
             if train_err:
                 out_dict[donor] = temp_model.train_err
             else: 
@@ -473,7 +459,7 @@ class syn_model(RobustSyntheticControl):
             donorPool.remove(donor)
             temp_model = syn_model(donor, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
-            temp_model.fit_model(force_positive=False)
+            temp_model.fit_model()
             
             out_dict[donor] = temp_model.find_ri(metrics, method = ri_method)
             models[donor] = temp_model
@@ -590,7 +576,7 @@ class syn_model(RobustSyntheticControl):
         ax.set_ylabel(yaxis, fontsize=fontsize)
         ax.set_xlim(left=0)
         #if show_legend:
-        ax.legend(fontsize=25)
+        ax.legend(fontsize=fontsize)
         figure.canvas.draw()
         labels = [item.get_text() for item in ax.get_xticklabels()]
         ax.set_xticklabels(labels, rotation=20)
