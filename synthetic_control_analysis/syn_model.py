@@ -18,7 +18,7 @@ def mean_error(y_actual, y_pred):
 class syn_model(RobustSyntheticControl):
 
 
-    def __init__(self, state, singVals, dfs, thresh, low_thresh, random_distribution = None, lambdas = [1],
+    def __init__(self, state, singVals, dfs, thresh, low_thresh, random_distribution = None, lambdas = [],
                  mRSC = False, otherStates=[]):
 
         '''
@@ -45,7 +45,7 @@ class syn_model(RobustSyntheticControl):
         self.low_thresh = low_thresh
         self.thresh = thresh
         self.mRSC = mRSC
-        self.lambdas = lambdas.copy()
+        self.lambdas = lambdas.copy() if len(lambdas) else [1 for _ in range(len(dfs))]
         self.random_distribution = random_distribution
         self.actual = self.dfs[0][state]
         self.predictions = None
@@ -213,7 +213,7 @@ class syn_model(RobustSyntheticControl):
             test_values = np.array(list(test_perm_dict.values()))
 
             input_df =  pd.DataFrame([train_values,test_values]).transpose() # pd.DataFrame(values)
-            hbos = HBOS(alpha=0.1, contamination=0.15, n_bins=20, tol=0.5)
+            hbos = HBOS(alpha=0.1, contamination=0.1, n_bins=20, tol=0.5)
             hbos.fit(input_df)
             output = hbos.decision_function(input_df)
             res = hbos.predict(input_df)
@@ -562,7 +562,7 @@ class syn_model(RobustSyntheticControl):
             ax.set_yscale('log')
         ax.plot(self.actual.index, self.actual, label='Actuals', color='k', linestyle='-', alpha = 0.7)
         ax.plot(self.test.index, self.predictions, label='Predictions', color='r', linestyle='--')
-        ax.plot(self.train.index, self.model_fit, label = 'Fitted model', color='g', linestyle=':')
+        ax.plot(self.train.index[:self.low_thresh], self.model_fit[:self.low_thresh], label = 'Fitted model', color='g', linestyle=':')
         if show_denoise:
             ax.plot(self.denoisedDF.index, self.denoisedDF[self.state], label = 'Denoised Model', color='purple', linestyle='-.')
         ax.xaxis.set_major_locator(ticker.MultipleLocator(tick_spacing))
