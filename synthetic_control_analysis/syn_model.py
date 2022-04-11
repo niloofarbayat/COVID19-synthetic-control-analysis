@@ -85,7 +85,7 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, force_positive=True, filter_donor = False, filter_method = 'hbo', backward_donor_eliminate = False, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
+    def fit_model(self, convex_weight = False, force_positive=True, filter_donor = False, filter_method = 'hbo', backward_donor_eliminate = False, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
@@ -106,7 +106,7 @@ class syn_model(RobustSyntheticControl):
             # print(self.kSingularValues )
 
 
-        self.fit(self.train)
+        self.fit(self.train, convex_weight = convex_weight)
 
         denoisedDF = self.model.denoisedDF()
 
