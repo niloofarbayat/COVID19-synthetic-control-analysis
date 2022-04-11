@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from tslib.src.algorithms.svdWrapper import SVDWrapper as SVD
 from tslib.src import tsUtils
+import cvxpy as cp
+import warnings
 
 class SVDModel(object):
 
@@ -51,7 +53,7 @@ class SVDModel(object):
     # run a least-squares regression of the last row of self.matrix and all other rows of self.matrix
     # sets and returns the weights
     # DO NOT call directly
-    def _computeWeights(self):       
+    def _computeWeights(self, convex_weight = False):       
 
         ### This is now the same as ALS
         ## this is an expensive step because we are computing the SVD all over again 
@@ -89,8 +91,43 @@ class SVDModel(object):
         svdMod = SVD(newMatrix, method='numpy')
         (self.skw, self.Ukw, self.Vkw) = svdMod.reconstructMatrix(self.kSingularValues, returnMatrix=False)
 
-        newMatrixPInv = tsUtils.pInverseMatrixFromSVD(self.skw, self.Ukw, self.Vkw, probability=self.p)
-        self.weights = np.dot(newMatrixPInv.T, self.lastRowObservations.T)
+        if not convex_weight:
+
+            newMatrixPInv = tsUtils.pInverseMatrixFromSVD(self.skw, self.Ukw, self.Vkw, probability=self.p)
+            self.weights = np.dot(newMatrixPInv.T, self.lastRowObservations.T)
+
+        if convex_weight:
+
+            X = tsUtils.matrixFromSVD(self.skw, self.Ukw, self.Vkw)
+            Y = self.lastRowObservations
+            w = cp.Variable(X.shape[0])
+
+            pred = w @ X
+            prob = cp.Problem(cp.Minimize((1/2)*cp.quad_form(Y - pred, np.eye(len(Y)))),  
+                                                            [w >= 0])
+
+            try:
+                prob.solve()
+            except Exception as e: 
+                warnings.warn("No Convex weight found")
+                newMatrixPInv = tsUtils.pInverseMatrixFromSVD(self.skw, self.Ukw, self.Vkw, probability=self.p)
+                self.weights = np.dot(newMatrixPInv.T, self.lastRowObservations.T)
+
+            if w.value is None:
+                warnings.warn("No Convex weight found")
+                newMatrixPInv = tsUtils.pInverseMatrixFromSVD(self.skw, self.Ukw, self.Vkw, probability=self.p)
+                self.weights = np.dot(newMatrixPInv.T, self.lastRowObservations.T)
+
+            # prob.solve()
+            # print(w.value)
+            # print("\nThe optimal value is", prob.value)
+            # print("A solution x is")
+            # print(w.value)
+            # print("A dual solution corresponding to the inequality constraints is")
+            #print(prob.constraints[0].dual_value)
+            else: 
+                self.weights = np.array(w.value)
+
 
     # return the imputed matrix
     def denoisedDF(self):
@@ -177,7 +214,7 @@ class SVDModel(object):
     # Note that the keys provided in the constructor MUST all be present
     # The values must be all numpy arrays of floats.
     # This function sets the "de-noised" and imputed data matrix which can be accessed by the .matrix property
-    def fit(self, keyToSeriesDF):
+    def fit(self, keyToSeriesDF, convex_weight = False):
 
         # assign data to class variables
 
@@ -187,7 +224,7 @@ class SVDModel(object):
         (self.sk, self.Uk, self.Vk) = svdMod.reconstructMatrix(self.kSingularValues, returnMatrix=False)
         self.matrix = tsUtils.matrixFromSVD(self.sk, self.Uk, self.Vk, probability=self.p)
         # set weights
-        self._computeWeights()
+        self._computeWeights(convex_weight = convex_weight)
 
 
 

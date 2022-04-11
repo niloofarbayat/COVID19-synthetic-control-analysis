@@ -51,9 +51,9 @@ class RobustSyntheticControl(object):
     # keyToSeriesDictionary: (Pandas dataframe) a key-value Series
     # Note that the keys provided in the constructor MUST all be present
     # The values must be all numpy arrays of floats.
-    def fit(self, keyToSeriesDF):
+    def fit(self, keyToSeriesDF, convex_weight = False):
 
-    	self.model.fit(keyToSeriesDF)
+        self.model.fit(keyToSeriesDF, convex_weight = convex_weight)
 
 
     # otherKeysToSeriesDFNew:     (Pandas dataframe) needs to contain all keys provided in the model;
@@ -66,8 +66,8 @@ class RobustSyntheticControl(object):
     # return the synthetic control weights
     def getControl():
 
-    	if (self.model.weights is None):
-    		raise Exception('Before calling getControl() you need to call the fit() method first.')
+        if (self.model.weights is None):
+            raise Exception('Before calling getControl() you need to call the fit() method first.')
 
-    	else:
-    		return self.model.weights
+        else:
+            return self.model.weights
