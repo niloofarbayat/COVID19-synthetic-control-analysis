@@ -105,7 +105,7 @@ def create_intervention_adjusted_data(df, intervention, rolling_average_duration
     temp = create_rolling_data(df, rolling_average_duration)
     intervention_adjusted_daily, _ = filter_data_by_intervention(temp, intervention, ignore_nan=ignore_nan)
     #intervention_adjusted_daily.index = intervention_adjusted_daily.index-rolling_average_duration
-    return intervention_adjusted, intervention_adjusted_daily, intervention_dates
+    return intervention_adjusted.dropna(), intervention_adjusted_daily.dropna(), intervention_dates
 
 
 # function to create filtered dataframe based on intervention dates and align timeseries
