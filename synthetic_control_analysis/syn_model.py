@@ -38,14 +38,16 @@ class syn_model(RobustSyntheticControl):
         
         '''
 
-        super().__init__(state, singVals, low_thresh, probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=otherStates)
+        self.lambdas = [1] if not mRSC else (lambdas.copy() if len(lambdas) else [1 for _ in range(len(dfs))] )
+        M = low_thresh * len(self.lambdas)
+
+        super().__init__(state, singVals, M, probObservation=1.0, modelType='svd', svdMethod='numpy', otherSeriesKeysArray=otherStates)
         self.state = state
         self.donors = otherStates.copy()
         self.dfs = [df.fillna(0) for df in dfs]
         self.low_thresh = low_thresh
         self.thresh = thresh
         self.mRSC = mRSC
-        self.lambdas = lambdas.copy() if len(lambdas) else [1 for _ in range(len(dfs))]
         self.random_distribution = random_distribution
         self.actual = self.dfs[0][state]
         self.predictions = None
