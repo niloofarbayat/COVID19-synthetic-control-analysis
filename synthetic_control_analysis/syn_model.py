@@ -56,6 +56,8 @@ class syn_model(RobustSyntheticControl):
         self.test_err = None
         self.denoisedDF = None
         self.train, self.test = self.__split_data()
+        self.force_positive = True
+        self.daily = True
 
 
 
@@ -87,10 +89,12 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, convex_weight = False, force_positive=True, filter_donor = False, filter_method = 'hbo', backward_donor_eliminate = False, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
+    def fit_model(self, convex_weight = False, force_positive=True, daily = True, filter_donor = False, filter_method = 'hbo', backward_donor_eliminate = False, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
+        self.force_positive = force_positive
+        self.daily = daily
 
         if filter_donor:
             self.donors = self.filter_donor(filter_metrics, method = filter_method,backward_donor_eliminate = backward_donor_eliminate, eps = eps, alpha = alpha, ri_method = ri_method, singval_mathod = singval_mathod, singVals_estimate = singVals_estimate)[0]
@@ -112,8 +116,8 @@ class syn_model(RobustSyntheticControl):
 
         denoisedDF = self.model.denoisedDF()
 
-        self.predictions = self.model_predict(force_positive=force_positive)
-        self.model_fit = self.model_predict(test = False, force_positive=force_positive)
+        self.predictions = self.model_predict()
+        self.model_fit = self.model_predict(test = False)
         self.train_err = self.training_error()
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
@@ -315,7 +319,7 @@ class syn_model(RobustSyntheticControl):
 
                 for i in range(start,nominal_rank+1):
                     m = syn_model(target, i, input_df, 200, intervention, otherStates=otherstates)
-                    m.fit_model() #force_positive=False
+                    m.fit_model() 
                     err = (m.denoisedDF.values - m.train.values)
                     #valid_sv.append([])
                     for j in range(len(err[0])):
@@ -338,13 +342,15 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def model_predict(self, test = True, force_positive = True):
+    def model_predict(self, test = True):
 
         '''
         do prediction based on the fitted model
         @param
         test: If true, then return the prediction of the model for post-intervention 
-        force_positive: If true, turn all the negative prediction to 0
+        force_positive: If true, check daily
+        daily: If True, turn all the negative prediction to 0. If False, it means our data is accumulative, make it increasing
+
 
         '''
         if test:
@@ -353,8 +359,17 @@ class syn_model(RobustSyntheticControl):
             data = self.train
 
         predictions = np.dot(data[self.donors].fillna(0).values, self.model.weights)
-        if force_positive:
-            predictions[predictions < 0 ] = 0
+        if self.force_positive:
+            if self.daily:
+                predictions[predictions < 0 ] = 0
+            else:
+                diff = np.diff(predictions)
+                buff = predictions[0]
+                for idx, num in enumerate(diff):
+                    if num < 0:
+                        buff = predictions[idx]
+                    if predictions[idx+1] < buff:
+                        predictions[idx+1] = buff
 
         return predictions
 
@@ -426,7 +441,7 @@ class syn_model(RobustSyntheticControl):
             donorPool.remove(donor)
             temp_model = syn_model(donor, self.kSingularValues, self.dfs, self.thresh, self.low_thresh, 
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=donorPool)
-            temp_model.fit_model(force_positive=True)
+            temp_model.fit_model(force_positive=self.force_positive, daily=self.daily)
             if train_err:
                 out_dict[donor] = temp_model.train_err
             else: 
