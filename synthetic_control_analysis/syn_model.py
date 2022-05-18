@@ -89,7 +89,7 @@ class syn_model(RobustSyntheticControl):
 
 
 
-    def fit_model(self, convex_weight = False, force_positive=True, daily = True, filter_donor = False, filter_method = 'hbo', backward_donor_eliminate = False, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
+    def fit_model(self, convex_weight = False, force_positive=True, daily = True, filter_donor = False, min_donor_len = 10, filter_method = 'hbo', backward_donor_eliminate = False, ri_method = "ratio", filter_metrics = mean_squared_error, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
         '''
         fit the RobustSyntheticControl model based on given data
         '''
@@ -97,7 +97,7 @@ class syn_model(RobustSyntheticControl):
         self.daily = daily
 
         if filter_donor:
-            self.donors = self.filter_donor(filter_metrics, method = filter_method,backward_donor_eliminate = backward_donor_eliminate, eps = eps, alpha = alpha, ri_method = ri_method, singval_mathod = singval_mathod, singVals_estimate = singVals_estimate)[0]
+            self.donors = self.filter_donor(filter_metrics, method = filter_method,backward_donor_eliminate = backward_donor_eliminate, eps = eps, alpha = alpha, ri_method = ri_method, singval_mathod = singval_mathod, singVals_estimate = singVals_estimate, min_len=min_donor_len)[0]
 
             if len(self.donors) == 0:
                 raise ValueError("Donor pool size 0")
@@ -122,7 +122,7 @@ class syn_model(RobustSyntheticControl):
         self.test_err = self.testing_error()
         self.denoisedDF = denoisedDF
 
-    def filter_donor(self, err_metrics, ri_method = "ratio", method = 'hbo', backward_donor_eliminate = True, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False):
+    def filter_donor(self, err_metrics, ri_method = "ratio", method = 'hbo', backward_donor_eliminate = True, eps = 1e-4, alpha = 0.05, singval_mathod = 'auto', singVals_estimate = False, min_len = 10):
 
         #################################################################################
         ########################### BACKWARD DONOR ELIMINATION ##########################
@@ -164,8 +164,9 @@ class syn_model(RobustSyntheticControl):
                 new_donors = np.array(list(out_dict.keys()))
                 values = np.array(list(out_dict.values()))
                 max_value = max(values)
+                if (max_value == values).all:
+                    return list(new_donors)
                 new_donors,values = new_donors[(values < max_value)], values[(values < max_value)]
-                
                 return list(new_donors)
 
 
@@ -177,7 +178,7 @@ class syn_model(RobustSyntheticControl):
                                 random_distribution = self.random_distribution, lambdas = self.lambdas, mRSC = self.mRSC, otherStates=self.donors)
             rscModel1.fit_model(filter_donor = False, singval_mathod = singval_mathod, singVals_estimate = singVals_estimate)
 
-            while len(self.donors)>3:
+            while len(self.donors)>min_len:
         
                 new_donors = backward_donor_elimination(rscModel1, hi_thresh, low_thresh, metric=mean_squared_error, shuffle = False)
                 
@@ -186,7 +187,7 @@ class syn_model(RobustSyntheticControl):
                                 
                 rscModel2.fit_model(filter_donor = False, singval_mathod = singval_mathod, singVals_estimate = singVals_estimate)
 
-                if  (   ri_method == "ratio" and (rscModel1.find_ri(mean_squared_error) <= rscModel2.find_ri(mean_squared_error)) or  
+                if  (   ri_method == "ratio" and (rscModel1.find_ri(mean_squared_error) <= rscModel2.find_ri(mean_squared_error) or np.isnan(rscModel1.find_ri(mean_squared_error))) or  
                         ri_method != "ratio" and (rscModel1.training_error(mean_squared_error) <= rscModel2.training_error(mean_squared_error)) 
                     ):
                     break
@@ -311,9 +312,9 @@ class syn_model(RobustSyntheticControl):
             return estimate_rank(np.array(X))
 
         if method == "auto":
-            nominal_rank = min(np.array(X).shape)
+            nominal_rank = min(min(np.array(X).shape), len(self.donors))
             
-            def find_auto_rank(target, input_df, intervention,otherstates,nominal_rank=30, start = 1):
+            def find_auto_rank(target, input_df, intervention,otherstates,nominal_rank=10, start = 1):
                 nlags = 10
                 valid_sv = {}
 
